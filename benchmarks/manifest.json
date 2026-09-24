@@ -23,6 +23,13 @@
     { "id": "gauss_seidel", "category": "stencil" },
     { "id": "trapezoid_integration", "category": "stencil" },
     { "id": "nbody_naive", "category": "stencil" },
-    { "id": "monte_carlo_pi", "category": "stencil" }
+    { "id": "monte_carlo_pi", "category": "stencil" },
+    { "id": "insertion_sort", "category": "sorting" },
+    { "id": "quicksort_bad_pivot", "category": "sorting" },
+    { "id": "mergesort_mallocs", "category": "sorting" },
+    { "id": "count_inversions", "category": "sorting" },
+    { "id": "linear_search_many", "category": "sorting" },
+    { "id": "selection_sort", "category": "sorting" },
+    { "id": "binary_search_resort", "category": "sorting" }
   ]
 }
