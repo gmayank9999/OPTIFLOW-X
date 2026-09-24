@@ -6,7 +6,7 @@ python-dotenv>=1.0
 # Agents
 crewai>=0.80.0
 crewai-tools>=0.17.0
-mcp>=1.2.0
+mcp>=1.2.0,<2.0.0
 litellm>=1.55.0
 
 # Execution / sandboxing
