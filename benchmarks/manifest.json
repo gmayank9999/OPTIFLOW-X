@@ -37,6 +37,12 @@
     { "id": "bellman_ford", "category": "graph" },
     { "id": "connected_components", "category": "graph" },
     { "id": "pagerank_iters", "category": "graph" },
-    { "id": "triangle_counting", "category": "graph" }
+    { "id": "triangle_counting", "category": "graph" },
+    { "id": "edit_distance", "category": "dp" },
+    { "id": "knapsack01", "category": "dp" },
+    { "id": "matrix_chain", "category": "dp" },
+    { "id": "coin_change", "category": "dp" },
+    { "id": "lis_on2", "category": "dp" },
+    { "id": "rod_cutting_recursive", "category": "dp" }
   ]
 }

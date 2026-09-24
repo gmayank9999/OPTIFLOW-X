@@ -1,0 +1,12 @@
+{
+  "id": "edit_distance",
+  "category": "dp",
+  "language": "c",
+  "inputs": ["inputs/in1.txt", "inputs/in2.txt", "inputs/in3.txt"],
+  "expected": ["expected/out1.txt", "expected/out2.txt", "expected/out3.txt"],
+  "bench_input": "inputs/in3.txt",
+  "compare": "exact",
+  "tolerance": 0,
+  "timeout_s": 20,
+  "subset10": false
+}

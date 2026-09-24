@@ -224,6 +224,43 @@ def gen_triangle_counting() -> None:
     _write_adjacency("triangle_counting", "in3.txt", 500, "", _random_adjacency(rng, 500, 0.1, directed=False))
 
 
+def gen_edit_distance() -> None:
+    rng = random.Random(18018)
+    alphabet = "ABCDE"
+
+    def rand_str(n: int) -> str:
+        return "".join(rng.choice(alphabet) for _ in range(n))
+
+    write("edit_distance", "in1.txt", "A A\n")
+    write("edit_distance", "in2.txt", f"{rand_str(33)} {rand_str(29)}\n")
+    write("edit_distance", "in3.txt", f"{rand_str(4500)} {rand_str(4500)}\n")
+
+
+def gen_knapsack01() -> None:
+    rng = random.Random(19019)
+
+    def gen(n: int, w_cap: int) -> str:
+        lines = [f"{n} {w_cap}"]
+        for _ in range(n):
+            lines.append(f"{rng.randint(1, 50)} {rng.randint(1, 100)}")
+        return "\n".join(lines) + "\n"
+
+    write("knapsack01", "in1.txt", gen(1, 10))
+    write("knapsack01", "in2.txt", gen(33, 200))
+    write("knapsack01", "in3.txt", gen(500, 8000))
+
+
+def gen_lis_on2() -> None:
+    _random_array_program("lis_on2", 20020, bench_n=9000, lo=-100000, hi=100000)
+
+
+def gen_matrix_chain() -> None:
+    rng = random.Random(21021)
+    n = 400
+    dims = [rng.randint(2, 100) for _ in range(n + 1)]
+    write("matrix_chain", "in3.txt", f"{n}\n{' '.join(map(str, dims))}\n")
+
+
 if __name__ == "__main__":
     gen_bubble_sort()
     gen_floyd_warshall()
@@ -243,4 +280,8 @@ if __name__ == "__main__":
     gen_connected_components()
     gen_pagerank_iters()
     gen_triangle_counting()
+    gen_edit_distance()
+    gen_knapsack01()
+    gen_lis_on2()
+    gen_matrix_chain()
     print("generated inputs for all random-data benchmark programs")
