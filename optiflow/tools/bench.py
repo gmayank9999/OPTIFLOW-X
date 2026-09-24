@@ -94,7 +94,13 @@ def compare(candidate_id: str, program_id: str, n: int = 10) -> CompareResult:
     if not candidate.runtimes_ms or not baseline.runtimes_ms:
         return CompareResult(speedup=0.0, p_value=1.0, accepted_by_rule=False)
 
-    speedup = baseline.median_ms / candidate.median_ms if candidate.median_ms else 0.0
+    # /usr/bin/time has ~10ms resolution (Section 6.3), so a candidate
+    # that's genuinely much faster than that can measure as exactly 0ms.
+    # Treating that as a 0x speedup would silently reject the best
+    # possible outcome; floor at a small epsilon instead so it reads as
+    # "very fast" rather than "instant and therefore invalid".
+    candidate_ms = max(candidate.median_ms, 1.0)
+    speedup = baseline.median_ms / candidate_ms
     try:
         _, p_value = mannwhitneyu(
             baseline.runtimes_ms, candidate.runtimes_ms, alternative="greater"
