@@ -12,7 +12,7 @@ load_dotenv()
 
 # USD per 1M tokens, (input, output). Local models are free but still timed.
 PRICE_PER_1M_TOKENS: dict[str, tuple[float, float]] = {
-    "gemini/gemini-2.0-flash": (0.10, 0.40),
+    "gemini/gemini-flash-lite-latest": (0.10, 0.40),
     "groq/llama-3.3-70b-versatile": (0.59, 0.79),
     "openai/gpt-4o-mini": (0.15, 0.60),
     "ollama/qwen2.5-coder:7b": (0.0, 0.0),
@@ -22,13 +22,13 @@ PRICE_PER_1M_TOKENS: dict[str, tuple[float, float]] = {
 # "single-cloud" / "single-local" / "mixed" (Section 13.3).
 MODEL_ASSIGNMENTS: dict[str, dict[str, str]] = {
     "single-cloud": {
-        "analyzer": "gemini/gemini-2.0-flash",
-        "profiler": "gemini/gemini-2.0-flash",
-        "strategist": "gemini/gemini-2.0-flash",
-        "transformer": "gemini/gemini-2.0-flash",
-        "compiler_exec": "gemini/gemini-2.0-flash",
-        "benchmark": "gemini/gemini-2.0-flash",
-        "critic": "gemini/gemini-2.0-flash",
+        "analyzer": "gemini/gemini-flash-lite-latest",
+        "profiler": "gemini/gemini-flash-lite-latest",
+        "strategist": "gemini/gemini-flash-lite-latest",
+        "transformer": "gemini/gemini-flash-lite-latest",
+        "compiler_exec": "gemini/gemini-flash-lite-latest",
+        "benchmark": "gemini/gemini-flash-lite-latest",
+        "critic": "gemini/gemini-flash-lite-latest",
     },
     "single-local": {
         "analyzer": "ollama/qwen2.5-coder:7b",
@@ -46,7 +46,7 @@ MODEL_ASSIGNMENTS: dict[str, dict[str, str]] = {
         "transformer": "openai/gpt-4o-mini",
         "compiler_exec": "ollama/qwen2.5-coder:7b",
         "benchmark": "ollama/qwen2.5-coder:7b",
-        "critic": "gemini/gemini-2.0-flash",
+        "critic": "gemini/gemini-flash-lite-latest",
     },
 }
 
@@ -66,7 +66,7 @@ class Settings:
 @lru_cache
 def get_settings() -> Settings:
     return Settings(
-        cloud_model=os.getenv("CLOUD_MODEL", "gemini/gemini-2.0-flash"),
+        cloud_model=os.getenv("CLOUD_MODEL", "gemini/gemini-flash-lite-latest"),
         strong_model=os.getenv("STRONG_MODEL", "openai/gpt-4o-mini"),
         local_model=os.getenv("LOCAL_MODEL", "ollama/qwen2.5-coder:7b"),
         max_attempts=int(os.getenv("MAX_ATTEMPTS", "5")),

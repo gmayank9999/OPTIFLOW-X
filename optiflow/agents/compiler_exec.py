@@ -70,5 +70,5 @@ def _self_repair(agent: Agent, source: str, stderr: str) -> str:
         expected_output="A single fenced code block containing the fixed file.",
         agent=agent,
     )
-    result = agent.kickoff([task]) if hasattr(agent, "kickoff") else task.execute_sync(agent)
+    result = task.execute_sync(agent)
     return extract_code(str(result))

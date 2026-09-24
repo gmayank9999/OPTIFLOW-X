@@ -9,6 +9,7 @@ retry with the validation error appended to the prompt.
 from __future__ import annotations
 
 import json
+import re
 
 from crewai import Agent, Task
 
@@ -87,13 +88,17 @@ def run(
 
     prompt = _build_prompt(prompt_style, context, attempt)
 
+    # Not using output_pydantic here: CrewAI turns OptimizationPlan into a
+    # JSON schema for structured output, and Strategy.params (an open dict)
+    # becomes additionalProperties=true, which the Gemini Developer API's
+    # free tier rejects outright. Parsing the JSON text ourselves avoids
+    # that while still validating against the same schema.
     task = Task(
         description=prompt,
         expected_output="OptimizationPlan JSON only, no prose.",
         agent=agent,
-        output_pydantic=OptimizationPlan,
     )
-    result = agent.kickoff([task]) if hasattr(agent, "kickoff") else task.execute_sync(agent)
+    result = task.execute_sync(agent)
 
     plan = _coerce_plan(result, attempt)
     return plan
@@ -107,14 +112,23 @@ def _build_prompt(prompt_style: str, context: dict, attempt: int) -> str:
     return prompts.STRUCTURED.format(**context)
 
 
+_JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
+
+
 def _coerce_plan(result, attempt: int) -> OptimizationPlan:
-    if hasattr(result, "pydantic") and result.pydantic is not None:
-        plan = result.pydantic
-        plan.attempt = attempt
-        return plan
     if isinstance(result, OptimizationPlan):
         result.attempt = attempt
         return result
-    data = json.loads(str(result))
+
+    text = str(result).strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        text = text[text.find("\n") + 1 :] if "\n" in text else text
+
+    match = _JSON_OBJECT_RE.search(text)
+    if match:
+        text = match.group(0)
+
+    data = json.loads(text)
     data["attempt"] = attempt
     return OptimizationPlan(**data)

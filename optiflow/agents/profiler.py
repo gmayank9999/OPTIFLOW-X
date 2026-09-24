@@ -43,7 +43,7 @@ def run(agent: Agent, summary: ProgramSummary) -> ProfileReport:
         expected_output="One sentence naming the bottleneck with supporting numbers.",
         agent=agent,
     )
-    crew_output = agent.kickoff([task]) if hasattr(agent, "kickoff") else task.execute_sync(agent)
+    crew_output = task.execute_sync(agent)
     bottleneck_sentence = str(crew_output)
 
     from optiflow.tools import profile as profile_tool

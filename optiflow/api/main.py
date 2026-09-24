@@ -11,7 +11,10 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from optiflow.architectures.base import RunConfig
+from optiflow.core.console import fix_windows_console_encoding
 from optiflow.tools.registry import list_programs, load_meta
+
+fix_windows_console_encoding()
 
 app = FastAPI(title="OPTIFLOW-X API")
 

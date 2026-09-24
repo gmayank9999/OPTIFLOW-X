@@ -45,7 +45,7 @@ def run(agent: Agent, program_id: str) -> ProgramSummary:
         expected_output="A short structural summary, 3-5 lines, plain text.",
         agent=agent,
     )
-    crew_output = agent.kickoff([task]) if hasattr(agent, "kickoff") else task.execute_sync(agent)
+    crew_output = task.execute_sync(agent)
     summary_text = str(crew_output)
 
     from optiflow.tools import analyze as analyze_tool

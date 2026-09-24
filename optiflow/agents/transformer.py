@@ -51,7 +51,7 @@ def run(
         expected_output="A single fenced code block containing the complete rewritten file.",
         agent=agent,
     )
-    result = agent.kickoff([task]) if hasattr(agent, "kickoff") else task.execute_sync(agent)
+    result = task.execute_sync(agent)
 
     new_source = extract_code(str(result))
     is_safe, reason = safety_check(new_source)
