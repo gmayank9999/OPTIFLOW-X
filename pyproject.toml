@@ -8,6 +8,9 @@ readme = "README.md"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+filterwarnings = [
+    "ignore:cannot collect test class 'TestResult':UserWarning",
+]
 
 [tool.setuptools.packages.find]
 include = ["optiflow*"]

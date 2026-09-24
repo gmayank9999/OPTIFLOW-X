@@ -39,6 +39,7 @@ class ProgramSummary(BaseModel):
     functions: list[str]
     loops: list[dict]
     features: dict[str, float]
+    summary_text: str = ""
 
 
 class ProfileReport(BaseModel):
