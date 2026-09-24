@@ -1,4 +1,4 @@
-from optiflow.ml.predictor import rank
+from optiflow.ml.predictor import _heuristic_scores, rank
 
 MATMUL_FEATURES = {
     "max_loop_depth": 3.0,
@@ -18,18 +18,22 @@ RECURSIVE_FEATURES = {
 }
 
 
-def test_matmul_ranks_interchange_and_tiling_highly():
-    ranked = rank(MATMUL_FEATURES, top_k=3)
-    names = [name for name, _ in ranked]
-    assert "interchange" in names
-    assert "tiling" in names
+def test_heuristic_ranks_interchange_and_tiling_highly_for_stride_mismatch():
+    scores = _heuristic_scores(MATMUL_FEATURES)
+    top3 = sorted(scores, key=scores.get, reverse=True)[:3]
+    assert "interchange" in top3
+    assert "tiling" in top3
 
 
-def test_recursive_program_ranks_memoize_highest():
-    ranked = rank(RECURSIVE_FEATURES, top_k=1)
-    assert ranked[0][0] == "memoize"
+def test_heuristic_ranks_memoize_highest_for_recursion():
+    scores = _heuristic_scores(RECURSIVE_FEATURES)
+    assert max(scores, key=scores.get) == "memoize"
 
 
-def test_returns_requested_top_k_count():
+def test_rank_returns_requested_top_k_count():
+    # Exercises whatever backend is active (heuristic, or a trained model
+    # if one happens to exist locally) -- only checks the API contract,
+    # not which strategy comes out on top.
     ranked = rank(MATMUL_FEATURES, top_k=5)
     assert len(ranked) == 5
+    assert all(isinstance(name, str) and isinstance(score, float) for name, score in ranked)

@@ -1,0 +1,32 @@
+{
+  "n_rows": 50,
+  "n_programs": 50,
+  "label_counts": {
+    "flags": 22,
+    "interchange": 3,
+    "tiling": 2,
+    "vectorize": 1,
+    "unroll": 0,
+    "fusion": 0,
+    "fission": 0,
+    "soa": 2,
+    "hoist": 3,
+    "memoize": 2
+  },
+  "per_strategy_auc": {
+    "flags": 0.3311688311688311,
+    "interchange": 0.5,
+    "tiling": 0.1875,
+    "vectorize": null,
+    "unroll": null,
+    "fusion": null,
+    "fission": null,
+    "soa": 0.1875,
+    "hoist": 0.31560283687943264,
+    "memoize": 0.1875
+  },
+  "top1_hit_rate": 0.4482758620689655,
+  "top3_hit_rate": 0.5862068965517241,
+  "naive_baseline_top1_hit_rate": 0.7586206896551724,
+  "naive_baseline_top3_hit_rate": 0.8275862068965517
+}

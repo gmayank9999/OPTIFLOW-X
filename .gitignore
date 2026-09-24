@@ -31,6 +31,7 @@ results/figures/*
 !results/figures/.gitkeep
 results/runs/
 kb_store/
+optiflow/ml/models/
 *.gmon
 gmon.out
 
@@ -39,6 +40,9 @@ gmon.out
 .idea/
 .DS_Store
 Thumbs.db
+
+# Claude Code session state
+.claude/
 
 # Docker build context leftovers
 *.log
