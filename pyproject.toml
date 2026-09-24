@@ -1,0 +1,13 @@
+[project]
+name = "optiflow-x"
+version = "0.1.0"
+description = "Measurement-driven multi-agent optimization of C/C++ programs"
+requires-python = ">=3.11,<3.14"
+readme = "README.md"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["optiflow*"]

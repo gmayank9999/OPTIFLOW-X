@@ -1,0 +1,44 @@
+# Implementation notes (kept out of version control on purpose)
+OPTIFLOW-X — Complete Implementation Plan.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+build/
+dist/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Node / dashboard
+dashboard/node_modules/
+dashboard/.next/
+dashboard/out/
+dashboard/.env.local
+npm-debug.log*
+
+# Results and generated artifacts
+results/traces/*.jsonl
+results/runs.csv
+results/figures/*
+!results/figures/.gitkeep
+results/runs/
+kb_store/
+*.gmon
+gmon.out
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker build context leftovers
+*.log
