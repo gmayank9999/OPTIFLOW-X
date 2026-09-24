@@ -1,0 +1,14 @@
+{
+  "programs": [
+    { "id": "matmul_naive", "category": "matrix" },
+    { "id": "transpose", "category": "matrix" },
+    { "id": "jacobi2d", "category": "stencil" },
+    { "id": "bubble_sort", "category": "sorting" },
+    { "id": "floyd_warshall", "category": "graph" },
+    { "id": "lcs", "category": "dp" },
+    { "id": "fib_recursive", "category": "dp" },
+    { "id": "substring_naive", "category": "string" },
+    { "id": "particles_aos", "category": "data_layout" },
+    { "id": "mandelbrot", "category": "stencil" }
+  ]
+}
