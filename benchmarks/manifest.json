@@ -9,6 +9,20 @@
     { "id": "fib_recursive", "category": "dp" },
     { "id": "substring_naive", "category": "string" },
     { "id": "particles_aos", "category": "data_layout" },
-    { "id": "mandelbrot", "category": "stencil" }
+    { "id": "mandelbrot", "category": "stencil" },
+    { "id": "colmajor_sum", "category": "matrix" },
+    { "id": "matvec", "category": "matrix" },
+    { "id": "lu_decompose", "category": "matrix" },
+    { "id": "gaussian_elim", "category": "matrix" },
+    { "id": "conv2d", "category": "matrix" },
+    { "id": "matrix_power", "category": "matrix" },
+    { "id": "frobenius_colwise", "category": "matrix" },
+    { "id": "syrk", "category": "matrix" },
+    { "id": "heat1d", "category": "stencil" },
+    { "id": "heat2d", "category": "stencil" },
+    { "id": "gauss_seidel", "category": "stencil" },
+    { "id": "trapezoid_integration", "category": "stencil" },
+    { "id": "nbody_naive", "category": "stencil" },
+    { "id": "monte_carlo_pi", "category": "stencil" }
   ]
 }

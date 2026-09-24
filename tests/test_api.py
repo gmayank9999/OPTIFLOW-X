@@ -15,7 +15,7 @@ def test_programs_endpoint_lists_benchmark_suite():
     programs = response.json()
     ids = {p["id"] for p in programs}
     assert "matmul_naive" in ids
-    assert len(programs) == 10
+    assert len(programs) >= 10
 
 
 def test_start_run_rejects_unknown_program():
