@@ -261,6 +261,61 @@ def gen_matrix_chain() -> None:
     write("matrix_chain", "in3.txt", f"{n}\n{' '.join(map(str, dims))}\n")
 
 
+def gen_palindrome_count() -> None:
+    rng = random.Random(22022)
+
+    def rand_str(n: int, alphabet: str) -> str:
+        return "".join(rng.choice(alphabet) for _ in range(n))
+
+    write("palindrome_count", "in1.txt", "A\n")
+    write("palindrome_count", "in2.txt", rand_str(33, "AB") + "\n")
+    # single-character alphabet: every substring is a palindrome, so
+    # is_palindrome() always runs to completion instead of exiting on the
+    # first mismatch -- this is what actually makes it O(n^3).
+    write("palindrome_count", "in3.txt", "A" * 2200 + "\n")
+
+
+def gen_word_freq_linear() -> None:
+    rng = random.Random(23023)
+    vocab = [f"word{i}" for i in range(200)]
+
+    def gen(n: int) -> str:
+        words = [rng.choice(vocab) for _ in range(n)]
+        return f"{n}\n{' '.join(words)}\n"
+
+    write("word_freq_linear", "in1.txt", gen(1))
+    write("word_freq_linear", "in2.txt", gen(33))
+    write("word_freq_linear", "in3.txt", gen(15000))
+
+
+def gen_string_reversal_many() -> None:
+    rng = random.Random(24024)
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+    def rand_word(n: int) -> str:
+        return "".join(rng.choice(alphabet) for _ in range(n))
+
+    def gen(n: int, reps: int) -> str:
+        words = [rand_word(rng.randint(3, 20)) for _ in range(n)]
+        return f"{n} {reps}\n{' '.join(words)}\n"
+
+    write("string_reversal_many", "in1.txt", gen(1, 1))
+    write("string_reversal_many", "in2.txt", gen(33, 5))
+    write("string_reversal_many", "in3.txt", gen(15000, 400))
+
+
+def gen_run_length_encoding() -> None:
+    rng = random.Random(25025)
+    alphabet = "AB"
+
+    def rand_str(n: int) -> str:
+        return "".join(rng.choice(alphabet) for _ in range(n))
+
+    write("run_length_encoding", "in1.txt", "A\n")
+    write("run_length_encoding", "in2.txt", rand_str(33) + "\n")
+    write("run_length_encoding", "in3.txt", rand_str(60000) + "\n")
+
+
 if __name__ == "__main__":
     gen_bubble_sort()
     gen_floyd_warshall()
@@ -284,4 +339,8 @@ if __name__ == "__main__":
     gen_knapsack01()
     gen_lis_on2()
     gen_matrix_chain()
+    gen_palindrome_count()
+    gen_word_freq_linear()
+    gen_string_reversal_many()
+    gen_run_length_encoding()
     print("generated inputs for all random-data benchmark programs")

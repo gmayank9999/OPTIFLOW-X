@@ -43,6 +43,12 @@
     { "id": "matrix_chain", "category": "dp" },
     { "id": "coin_change", "category": "dp" },
     { "id": "lis_on2", "category": "dp" },
-    { "id": "rod_cutting_recursive", "category": "dp" }
+    { "id": "rod_cutting_recursive", "category": "dp" },
+    { "id": "palindrome_count", "category": "string" },
+    { "id": "word_freq_linear", "category": "string" },
+    { "id": "string_reversal_many", "category": "string" },
+    { "id": "run_length_encoding", "category": "string" },
+    { "id": "struct_records_scan", "category": "data_layout" },
+    { "id": "linked_list_traversal", "category": "data_layout" }
   ]
 }
