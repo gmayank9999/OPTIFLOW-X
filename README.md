@@ -20,6 +20,14 @@ accuracy, latency and cost.
 Actively being built. See the commit history for what exists today; this
 README describes the target shape of the system, not a finished product.
 
+The core loop is verified working end to end: a real run against
+`matmul_naive` with a Gemini key produced three consecutive accepted,
+statistically verified speedups (4.33x, then 5.06x, then 5.69x), each one
+compiled, tested against the reference outputs, and benchmarked for real
+in the Docker sandbox. Hierarchical/Event-Driven architectures, the
+XGBoost training sweep, the remaining 40 benchmark programs, and the
+dashboard are not built yet.
+
 ## How it works, in one run
 
 1. **Analyzer** reads the source and extracts loops, functions and static
@@ -80,7 +88,12 @@ copy .env.example .env
 # fill in API keys for whichever LLM provider you're using
 ```
 
-Run the sandbox/tooling tests:
+If you only have a key for one provider, set `MODEL_ASSIGNMENT=single-cloud`
+in `.env` so every agent role routes to `CLOUD_MODEL` instead of the mixed
+assignment, which expects separate keys for the local/strong/cloud models.
+
+Run the test suite (Docker must be running; a handful of tests also need
+`chromadb`/`sentence-transformers`, which `requirements.txt` already covers):
 
 ```bash
 pytest tests/
@@ -91,6 +104,19 @@ experiments start):
 
 ```bash
 python benchmarks/make_expected.py
+```
+
+Run one optimization loop end to end from a Python shell:
+
+```python
+from optiflow.architectures.base import RunConfig
+from optiflow.architectures.sequential import Sequential
+from optiflow.comms.blackboard import Blackboard
+
+cfg = RunConfig(architecture="sequential", messaging="blackboard",
+                 model_assignment="single-cloud", max_attempts=5)
+state = Sequential(Blackboard(), cfg).run("matmul_naive")
+print(state.best["speedup"])
 ```
 
 ## Benchmark suite
