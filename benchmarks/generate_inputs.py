@@ -136,6 +136,94 @@ def gen_binary_search_resort() -> None:
     write("binary_search_resort", "in3.txt", gen(1500, 400))
 
 
+def _random_adjacency(rng: random.Random, n: int, edge_prob: float, directed: bool = True) -> list[list[int]]:
+    adj = [[0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                continue
+            if directed:
+                if rng.random() < edge_prob:
+                    adj[i][j] = 1
+            elif j > i and rng.random() < edge_prob:
+                adj[i][j] = 1
+                adj[j][i] = 1
+    return adj
+
+
+def _write_adjacency(program: str, name: str, n: int, src_or_extra: str, adj: list[list[int]]) -> None:
+    rows = "\n".join(" ".join(map(str, row)) for row in adj)
+    header = f"{n} {src_or_extra}".strip()
+    write(program, name, f"{header}\n{rows}\n")
+
+
+def gen_bfs_matrix() -> None:
+    rng = random.Random(11011)
+    write("bfs_matrix", "in1.txt", "1 0\n0\n")
+    _write_adjacency("bfs_matrix", "in2.txt", 33, "0", _random_adjacency(rng, 33, 0.3, directed=False))
+    _write_adjacency("bfs_matrix", "in3.txt", 900, "0", _random_adjacency(rng, 900, 0.02, directed=False))
+
+
+def gen_dijkstra_v2() -> None:
+    rng = random.Random(12012)
+
+    def weighted(n: int, edge_prob: float) -> list[list[int]]:
+        adj = _random_adjacency(rng, n, edge_prob, directed=False)
+        for i in range(n):
+            for j in range(n):
+                if adj[i][j]:
+                    adj[i][j] = rng.randint(1, 50)
+        return adj
+
+    write("dijkstra_v2", "in1.txt", "1 0\n0\n")
+    _write_adjacency("dijkstra_v2", "in2.txt", 33, "0", weighted(33, 0.3))
+    _write_adjacency("dijkstra_v2", "in3.txt", 700, "0", weighted(700, 0.02))
+
+
+def gen_dfs_recursive() -> None:
+    rng = random.Random(13013)
+    write("dfs_recursive", "in1.txt", "1 0\n0\n")
+    _write_adjacency("dfs_recursive", "in2.txt", 33, "0", _random_adjacency(rng, 33, 0.3, directed=False))
+    _write_adjacency("dfs_recursive", "in3.txt", 2200, "0", _random_adjacency(rng, 2200, 0.05, directed=False))
+
+
+def gen_bellman_ford() -> None:
+    rng = random.Random(14014)
+
+    def weighted(n: int, edge_prob: float) -> list[list[int]]:
+        adj = _random_adjacency(rng, n, edge_prob, directed=True)
+        for i in range(n):
+            for j in range(n):
+                if adj[i][j]:
+                    adj[i][j] = rng.randint(1, 30)
+        return adj
+
+    write("bellman_ford", "in1.txt", "1 0\n0\n")
+    _write_adjacency("bellman_ford", "in2.txt", 33, "0", weighted(33, 0.3))
+    _write_adjacency("bellman_ford", "in3.txt", 250, "0", weighted(250, 0.1))
+
+
+def gen_connected_components() -> None:
+    rng = random.Random(15015)
+    write("connected_components", "in1.txt", "1\n0\n")
+    _write_adjacency("connected_components", "in2.txt", 33, "", _random_adjacency(rng, 33, 0.1, directed=False))
+    _write_adjacency("connected_components", "in3.txt", 1100, "", _random_adjacency(rng, 1100, 0.01, directed=False))
+
+
+def gen_pagerank_iters() -> None:
+    rng = random.Random(16016)
+    write("pagerank_iters", "in1.txt", "1 1\n0\n")
+    _write_adjacency("pagerank_iters", "in2.txt", 33, "20", _random_adjacency(rng, 33, 0.3, directed=True))
+    _write_adjacency("pagerank_iters", "in3.txt", 550, "60", _random_adjacency(rng, 550, 0.05, directed=True))
+
+
+def gen_triangle_counting() -> None:
+    rng = random.Random(17017)
+    write("triangle_counting", "in1.txt", "1\n0\n")
+    _write_adjacency("triangle_counting", "in2.txt", 33, "", _random_adjacency(rng, 33, 0.3, directed=False))
+    _write_adjacency("triangle_counting", "in3.txt", 500, "", _random_adjacency(rng, 500, 0.1, directed=False))
+
+
 if __name__ == "__main__":
     gen_bubble_sort()
     gen_floyd_warshall()
@@ -148,4 +236,11 @@ if __name__ == "__main__":
     gen_quicksort_bad_pivot()
     gen_linear_search_many()
     gen_binary_search_resort()
+    gen_bfs_matrix()
+    gen_dijkstra_v2()
+    gen_dfs_recursive()
+    gen_bellman_ford()
+    gen_connected_components()
+    gen_pagerank_iters()
+    gen_triangle_counting()
     print("generated inputs for all random-data benchmark programs")

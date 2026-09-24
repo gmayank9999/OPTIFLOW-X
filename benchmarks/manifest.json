@@ -30,6 +30,13 @@
     { "id": "count_inversions", "category": "sorting" },
     { "id": "linear_search_many", "category": "sorting" },
     { "id": "selection_sort", "category": "sorting" },
-    { "id": "binary_search_resort", "category": "sorting" }
+    { "id": "binary_search_resort", "category": "sorting" },
+    { "id": "bfs_matrix", "category": "graph" },
+    { "id": "dijkstra_v2", "category": "graph" },
+    { "id": "dfs_recursive", "category": "graph" },
+    { "id": "bellman_ford", "category": "graph" },
+    { "id": "connected_components", "category": "graph" },
+    { "id": "pagerank_iters", "category": "graph" },
+    { "id": "triangle_counting", "category": "graph" }
   ]
 }
