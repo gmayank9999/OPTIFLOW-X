@@ -24,9 +24,9 @@ The core loop is verified working end to end: a real run against
 `matmul_naive` with a Gemini key produced three consecutive accepted,
 statistically verified speedups (4.33x, then 5.06x, then 5.69x), each one
 compiled, tested against the reference outputs, and benchmarked for real
-in the Docker sandbox. Hierarchical/Event-Driven architectures, the
-XGBoost training sweep, the remaining 40 benchmark programs, and the
-dashboard are not built yet.
+in the Docker sandbox. All 50 benchmark programs are written and verified.
+Hierarchical/Event-Driven architectures, the XGBoost training sweep, and
+the dashboard are not built yet.
 
 ## How it works, in one run
 
