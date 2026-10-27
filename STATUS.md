@@ -56,11 +56,34 @@ Machine: Intel i7-1185G7 laptop, Windows 11, Docker Desktop on WSL2
   same domain knowledge, so its top-3 rate is partly circular; the
   ablations (no_xgb) are the fair test of whether the prior helps.
 
+- **E0 baselines, no LLM, all 50 programs**: flags only (-O3
+  -march=native) improves 19/50 programs, geo-mean 1.21x; the rule-based
+  baseline (predictor + hand-written templates) improves 36/50, geo-mean
+  4.60x.
+- **E1 architecture, 10-program subset, 1 run per cell, Gemini
+  flash-lite** (`results/analysis.json`):
+
+  | Architecture | Geo-mean | Success | Cost/run | Latency | Attempts |
+  |---|---|---|---|---|---|
+  | Sequential | 9.54x | 90% | $0.0030 | 113 s | 4.5 |
+  | Hierarchical | 6.24x | 80% | $0.0028 | 112 s | 3.6 |
+  | Event-driven | 6.04x | 90% | $0.0030 | 85 s | 4.4 |
+
+  Friedman p = 0.013; sequential beats both others in Holm-corrected
+  Wilcoxon tests, but by a median of only 6-9% per program, and most of
+  the geo-mean gap is one program (particles_aos 55x vs ~5x) where one LLM
+  attempt found a much better rewrite. With one run per cell this is
+  well within what LLM randomness could produce; it needs repeats before
+  it means anything. What does match the designs: event-driven is ~25%
+  faster (profiling overlaps analysis) and the hierarchical manager
+  stops earliest and spends least.
+
 ## Not done yet / limitations
 
-- The full experiment matrix (E1 on all 50 programs, E2-E5) has not been
-  run; only the configurations recorded in `results/runs.csv` have. The
+- E1 on all 50 programs, E2-E5, and repeats have not been run. The
   runner is resumable, so this is a matter of machine time and API budget.
+- One E1 attempt and two runs were lost to a DNS outage before LLM calls
+  had retry/backoff; they were re-run.
 - Timing on a laptop under WSL2 is noisier than the plan's target (CV < 3%
   for all programs). A quiet Linux machine with pinned cores would do
   better; the protocol does not need to change.

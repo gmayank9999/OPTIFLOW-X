@@ -1,0 +1,15 @@
+{
+  "source_sha": "90c2a8380120298e",
+  "report": {
+    "baseline_runtime_ms": 260.2295,
+    "runtime_std_ms": 36.19495456893129,
+    "peak_mem_kb": 20764,
+    "ipc": 3.7100490628423826,
+    "l1_miss_rate": 0.0013029574559572338,
+    "llc_miss_rate": 0.14004852083163893,
+    "branch_miss_rate": 0.0010748765690859613,
+    "hotspots": [],
+    "counters_source": "perf",
+    "bottleneck_text": "IPC=3.71, L1 miss rate=0.13%, LLC miss rate=14.00%, branch miss rate=0.11%"
+  }
+}

@@ -1,0 +1,930 @@
+{
+  "runs": 131,
+  "programs": 50,
+  "overall_geomean_speedup": 3.0620607747557433,
+  "total_cost_usd": 0.08960300000000002,
+  "experiments": {
+    "e0_baselines": {
+      "runs": 100,
+      "varied": [
+        "variant"
+      ],
+      "summaries": {
+        "variant": [
+          {
+            "variant": "flags_only",
+            "runs": 50,
+            "programs": 50,
+            "geomean_speedup": 1.2065727291900705,
+            "median_speedup": 1.0,
+            "success_rate": 0.38,
+            "success_ci": [
+              0.2586259584257722,
+              0.5184980497760643
+            ],
+            "mean_cost_usd": 0.0,
+            "p95_cost_usd": 0.0,
+            "mean_latency_s": 44.2748,
+            "median_latency_s": 40.805,
+            "p95_latency_s": 79.60049999999995,
+            "mean_tokens": 0.0,
+            "mean_attempts": 1.0,
+            "mean_messages": 7.98,
+            "mean_deliveries": 7.98,
+            "mean_message_bytes": 5820.28
+          },
+          {
+            "variant": "rule_only",
+            "runs": 50,
+            "programs": 50,
+            "geomean_speedup": 4.60124666256861,
+            "median_speedup": 1.4805,
+            "success_rate": 0.72,
+            "success_ci": [
+              0.5833461285401034,
+              0.8252598564231963
+            ],
+            "mean_cost_usd": 0.0,
+            "p95_cost_usd": 0.0,
+            "mean_latency_s": 202.12160000000003,
+            "median_latency_s": 38.334999999999994,
+            "p95_latency_s": 85.851,
+            "mean_tokens": 0.0,
+            "mean_attempts": 1.54,
+            "mean_messages": 11.22,
+            "mean_deliveries": 11.22,
+            "mean_message_bytes": 8280.48
+          }
+        ]
+      },
+      "tests": {
+        "variant": {
+          "factor": "variant",
+          "levels": [
+            "flags_only",
+            "rule_only"
+          ],
+          "paired_programs": 50,
+          "pairwise": [
+            {
+              "a": "flags_only",
+              "b": "rule_only",
+              "p_raw": 7.466049750713407e-07,
+              "median_ratio": 0.9485775124823976,
+              "p_holm": 7.466049750713407e-07,
+              "significant": true
+            }
+          ]
+        }
+      }
+    },
+    "e1_architecture": {
+      "runs": 30,
+      "varied": [
+        "architecture"
+      ],
+      "summaries": {
+        "architecture": [
+          {
+            "architecture": "event",
+            "runs": 10,
+            "programs": 10,
+            "geomean_speedup": 6.038367175925646,
+            "median_speedup": 2.10565,
+            "success_rate": 0.9,
+            "success_ci": [
+              0.5958436145024278,
+              0.9821242504842788
+            ],
+            "mean_cost_usd": 0.0030385000000000004,
+            "p95_cost_usd": 0.00409085,
+            "mean_latency_s": 85.459,
+            "median_latency_s": 77.26,
+            "p95_latency_s": 140.04699999999997,
+            "mean_tokens": 21451.1,
+            "mean_attempts": 4.4,
+            "mean_messages": 25.4,
+            "mean_deliveries": 25.4,
+            "mean_message_bytes": 21914.8
+          },
+          {
+            "architecture": "hierarchical",
+            "runs": 10,
+            "programs": 10,
+            "geomean_speedup": 6.242688916775446,
+            "median_speedup": 2.1591500000000003,
+            "success_rate": 0.8,
+            "success_ci": [
+              0.49015684672072335,
+              0.9433190520193067
+            ],
+            "mean_cost_usd": 0.0028159,
+            "p95_cost_usd": 0.004564449999999999,
+            "mean_latency_s": 111.73600000000002,
+            "median_latency_s": 113.60499999999999,
+            "p95_latency_s": 182.5215,
+            "mean_tokens": 19237.4,
+            "mean_attempts": 3.6,
+            "mean_messages": 22.4,
+            "mean_deliveries": 22.4,
+            "mean_message_bytes": 20099.4
+          },
+          {
+            "architecture": "sequential",
+            "runs": 10,
+            "programs": 10,
+            "geomean_speedup": 9.543864131588068,
+            "median_speedup": 3.1195000000000004,
+            "success_rate": 0.9,
+            "success_ci": [
+              0.5958436145024278,
+              0.9821242504842788
+            ],
+            "mean_cost_usd": 0.0029767,
+            "p95_cost_usd": 0.003951499999999999,
+            "mean_latency_s": 112.83600000000001,
+            "median_latency_s": 109.78,
+            "p95_latency_s": 200.60399999999993,
+            "mean_tokens": 21285.4,
+            "mean_attempts": 4.5,
+            "mean_messages": 27.2,
+            "mean_deliveries": 27.2,
+            "mean_message_bytes": 22584.9
+          }
+        ]
+      },
+      "tests": {
+        "architecture": {
+          "factor": "architecture",
+          "levels": [
+            "event",
+            "hierarchical",
+            "sequential"
+          ],
+          "paired_programs": 10,
+          "friedman": {
+            "statistic": 8.666666666666679,
+            "p_value": 0.013123728736940884
+          },
+          "pairwise": [
+            {
+              "a": "event",
+              "b": "sequential",
+              "p_raw": 0.00390625,
+              "median_ratio": 0.911115878252033,
+              "p_holm": 0.01171875,
+              "significant": true
+            },
+            {
+              "a": "hierarchical",
+              "b": "sequential",
+              "p_raw": 0.01953125,
+              "median_ratio": 0.940877044085037,
+              "p_holm": 0.0390625,
+              "significant": true
+            },
+            {
+              "a": "event",
+              "b": "hierarchical",
+              "p_raw": 0.25,
+              "median_ratio": 0.9920034256292551,
+              "p_holm": 0.25,
+              "significant": false
+            }
+          ]
+        }
+      }
+    },
+    "smoke": {
+      "runs": 1,
+      "varied": [],
+      "summaries": {
+        "all": [
+          {
+            "all": "all",
+            "runs": 1,
+            "programs": 1,
+            "geomean_speedup": 7.694900000000001,
+            "median_speedup": 7.6949,
+            "success_rate": 1.0,
+            "success_ci": [
+              0.20654329147389294,
+              1.0
+            ],
+            "mean_cost_usd": 0.001292,
+            "p95_cost_usd": 0.001292,
+            "mean_latency_s": 243.22,
+            "median_latency_s": 243.22,
+            "p95_latency_s": 243.22,
+            "mean_tokens": 9151.0,
+            "mean_attempts": 2.0,
+            "mean_messages": 14.0,
+            "mean_deliveries": 14.0,
+            "mean_message_bytes": 12431.0
+          }
+        ]
+      },
+      "tests": {}
+    }
+  },
+  "by_category": [
+    {
+      "category": "data_layout",
+      "runs": 9,
+      "programs": 3,
+      "geomean_speedup": 5.191068504463337,
+      "median_speedup": 5.0725,
+      "success_rate": 0.7777777777777778,
+      "success_ci": [
+        0.4525833436728054,
+        0.9367762376877727
+      ],
+      "mean_cost_usd": 0.0013143333333333332,
+      "p95_cost_usd": 0.0041594,
+      "mean_latency_s": 71.84,
+      "median_latency_s": 51.32,
+      "p95_latency_s": 122.316,
+      "mean_tokens": 8839.888888888889,
+      "mean_attempts": 2.5555555555555554,
+      "mean_messages": 17.0,
+      "mean_deliveries": 17.0,
+      "mean_message_bytes": 14807.222222222223
+    },
+    {
+      "category": "dp",
+      "runs": 22,
+      "programs": 8,
+      "geomean_speedup": 6.284388685878445,
+      "median_speedup": 1.0934,
+      "success_rate": 0.5909090909090909,
+      "success_ci": [
+        0.38734477382893806,
+        0.7674444033117963
+      ],
+      "mean_cost_usd": 0.0006423181818181818,
+      "p95_cost_usd": 0.0029977,
+      "mean_latency_s": 55.276363636363634,
+      "median_latency_s": 41.07,
+      "p95_latency_s": 112.43249999999999,
+      "mean_tokens": 4686.818181818182,
+      "mean_attempts": 1.8636363636363635,
+      "mean_messages": 12.363636363636363,
+      "mean_deliveries": 12.363636363636363,
+      "mean_message_bytes": 8925.09090909091
+    },
+    {
+      "category": "graph",
+      "runs": 19,
+      "programs": 8,
+      "geomean_speedup": 1.0393805851277766,
+      "median_speedup": 1.0,
+      "success_rate": 0.3684210526315789,
+      "success_ci": [
+        0.19149272376273843,
+        0.5896084250184328
+      ],
+      "mean_cost_usd": 0.0004412631578947368,
+      "p95_cost_usd": 0.0028986,
+      "mean_latency_s": 40.83684210526315,
+      "median_latency_s": 32.37,
+      "p95_latency_s": 99.77699999999997,
+      "mean_tokens": 3181.0,
+      "mean_attempts": 1.4736842105263157,
+      "mean_messages": 10.473684210526315,
+      "mean_deliveries": 10.473684210526315,
+      "mean_message_bytes": 8365.315789473685
+    },
+    {
+      "category": "matrix",
+      "runs": 27,
+      "programs": 10,
+      "geomean_speedup": 2.0340847679722733,
+      "median_speedup": 1.7239,
+      "success_rate": 0.7777777777777778,
+      "success_ci": [
+        0.5924270453692919,
+        0.8939290451059105
+      ],
+      "mean_cost_usd": 0.0008551851851851852,
+      "p95_cost_usd": 0.0038236,
+      "mean_latency_s": 82.16185185185185,
+      "median_latency_s": 51.74,
+      "p95_latency_s": 211.50299999999996,
+      "mean_tokens": 5996.148148148148,
+      "mean_attempts": 2.185185185185185,
+      "mean_messages": 15.074074074074074,
+      "mean_deliveries": 15.074074074074074,
+      "mean_message_bytes": 12354.814814814816
+    },
+    {
+      "category": "sorting",
+      "runs": 19,
+      "programs": 8,
+      "geomean_speedup": 16.975510351161287,
+      "median_speedup": 36.2095,
+      "success_rate": 0.7368421052631579,
+      "success_ci": [
+        0.5120803155892935,
+        0.8819376166045982
+      ],
+      "mean_cost_usd": 0.00029442105263157895,
+      "p95_cost_usd": 0.0023438999999999995,
+      "mean_latency_s": 469.82578947368415,
+      "median_latency_s": 41.64,
+      "p95_latency_s": 887.2659999999828,
+      "mean_tokens": 2252.3684210526317,
+      "mean_attempts": 1.7894736842105263,
+      "mean_messages": 11.789473684210526,
+      "mean_deliveries": 11.789473684210526,
+      "mean_message_bytes": 8423.0
+    },
+    {
+      "category": "stencil",
+      "runs": 22,
+      "programs": 8,
+      "geomean_speedup": 1.3186181643415216,
+      "median_speedup": 1.1359,
+      "success_rate": 0.5909090909090909,
+      "success_ci": [
+        0.38734477382893806,
+        0.7674444033117963
+      ],
+      "mean_cost_usd": 0.0007764090909090908,
+      "p95_cost_usd": 0.0038685499999999997,
+      "mean_latency_s": 59.5590909090909,
+      "median_latency_s": 39.870000000000005,
+      "p95_latency_s": 171.7885,
+      "mean_tokens": 5386.227272727273,
+      "mean_attempts": 1.8636363636363635,
+      "mean_messages": 12.727272727272727,
+      "mean_deliveries": 12.727272727272727,
+      "mean_message_bytes": 10189.90909090909
+    },
+    {
+      "category": "string",
+      "runs": 13,
+      "programs": 5,
+      "geomean_speedup": 2.4308155585739013,
+      "median_speedup": 1.2075,
+      "success_rate": 0.5384615384615384,
+      "success_ci": [
+        0.2914343243183205,
+        0.7679424569851186
+      ],
+      "mean_cost_usd": 0.0007303076923076922,
+      "p95_cost_usd": 0.003432399999999997,
+      "mean_latency_s": 43.80384615384616,
+      "median_latency_s": 41.82,
+      "p95_latency_s": 94.85799999999986,
+      "mean_tokens": 4814.923076923077,
+      "mean_attempts": 2.1538461538461537,
+      "mean_messages": 14.538461538461538,
+      "mean_deliveries": 14.538461538461538,
+      "mean_message_bytes": 12085.153846153846
+    }
+  ],
+  "pareto": [
+    {
+      "config": "sequential / blackboard / structured / single-cloud / flags_only",
+      "success_rate": 0.38,
+      "mean_cost_usd": 0.0,
+      "runs": 50,
+      "geomean_speedup": 1.2065727291900705,
+      "pareto": false
+    },
+    {
+      "config": "sequential / blackboard / structured / single-cloud / rule_only",
+      "success_rate": 0.72,
+      "mean_cost_usd": 0.0,
+      "runs": 50,
+      "geomean_speedup": 4.60124666256861,
+      "pareto": true
+    },
+    {
+      "config": "hierarchical / blackboard / structured / single-cloud / full",
+      "success_rate": 0.8,
+      "mean_cost_usd": 0.0028159,
+      "runs": 10,
+      "geomean_speedup": 6.242688916775446,
+      "pareto": true
+    },
+    {
+      "config": "sequential / blackboard / structured / single-cloud / full",
+      "success_rate": 0.9090909090909091,
+      "mean_cost_usd": 0.0028235454545454544,
+      "runs": 11,
+      "geomean_speedup": 9.358846292230032,
+      "pareto": true
+    },
+    {
+      "config": "event / blackboard / structured / single-cloud / full",
+      "success_rate": 0.9,
+      "mean_cost_usd": 0.0030385000000000004,
+      "runs": 10,
+      "geomean_speedup": 6.038367175925646,
+      "pareto": false
+    }
+  ],
+  "per_program": [
+    {
+      "program_id": "bellman_ford",
+      "category": "graph",
+      "flags_only": 1.0623,
+      "rule_only": 1.0755,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "bfs_matrix",
+      "category": "graph",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "binary_search_resort",
+      "category": "sorting",
+      "flags_only": 1.0,
+      "rule_only": 139.8782,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "bubble_sort",
+      "category": "sorting",
+      "flags_only": 1.0,
+      "rule_only": 212.7961,
+      "best_agent": 225.727,
+      "best_agent_strategy": "algorithmic",
+      "best_agent_run": "166eea8bc34d477495c8f4dadb330873",
+      "runs": 5
+    },
+    {
+      "program_id": "coin_change",
+      "category": "dp",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "colmajor_sum",
+      "category": "matrix",
+      "flags_only": 1.0642,
+      "rule_only": 4.6687,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "connected_components",
+      "category": "graph",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "conv2d",
+      "category": "matrix",
+      "flags_only": 1.851,
+      "rule_only": 1.9188,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "count_inversions",
+      "category": "sorting",
+      "flags_only": 21.1644,
+      "rule_only": 182.7942,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "dfs_recursive",
+      "category": "graph",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "dijkstra_v2",
+      "category": "graph",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "edit_distance",
+      "category": "dp",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "fib_recursive",
+      "category": "dp",
+      "flags_only": 1.0,
+      "rule_only": 1286.4949,
+      "best_agent": 1450.0805,
+      "best_agent_strategy": "flags",
+      "best_agent_run": "cfa125f6ebf845ccbe05b720b2c14c5f",
+      "runs": 5
+    },
+    {
+      "program_id": "floyd_warshall",
+      "category": "graph",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": 1.13,
+      "best_agent_strategy": "flags",
+      "best_agent_run": "3ba1246435014a0cb548db50fa046dcf",
+      "runs": 5
+    },
+    {
+      "program_id": "frobenius_colwise",
+      "category": "matrix",
+      "flags_only": 1.0,
+      "rule_only": 4.465,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "gauss_seidel",
+      "category": "stencil",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "gaussian_elim",
+      "category": "matrix",
+      "flags_only": 1.2087,
+      "rule_only": 1.2687,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "heat1d",
+      "category": "stencil",
+      "flags_only": 1.9153,
+      "rule_only": 1.9884,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "heat2d",
+      "category": "stencil",
+      "flags_only": 1.7107,
+      "rule_only": 1.7098,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "insertion_sort",
+      "category": "sorting",
+      "flags_only": 1.1051,
+      "rule_only": 46.1579,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "jacobi2d",
+      "category": "stencil",
+      "flags_only": 1.2341,
+      "rule_only": 1.2857,
+      "best_agent": 2.5264,
+      "best_agent_strategy": "algorithmic",
+      "best_agent_run": "e76788d5059343b98871aeb922e0418d",
+      "runs": 5
+    },
+    {
+      "program_id": "knapsack01",
+      "category": "dp",
+      "flags_only": 1.4761,
+      "rule_only": 1.6313,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "lcs",
+      "category": "dp",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": 3.7126,
+      "best_agent_strategy": "vectorize",
+      "best_agent_run": "8ba6707db35a4709b314daa361c8d23e",
+      "runs": 5
+    },
+    {
+      "program_id": "linear_search_many",
+      "category": "sorting",
+      "flags_only": 1.0,
+      "rule_only": 36.2095,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "linked_list_traversal",
+      "category": "data_layout",
+      "flags_only": 1.0,
+      "rule_only": 23.9118,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "lis_on2",
+      "category": "dp",
+      "flags_only": 1.0,
+      "rule_only": 1.0588,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "lu_decompose",
+      "category": "matrix",
+      "flags_only": 1.243,
+      "rule_only": 1.2946,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "mandelbrot",
+      "category": "stencil",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": 1.0,
+      "best_agent_strategy": null,
+      "best_agent_run": "87f1e4e04cba4015a58082a105ba6abf",
+      "runs": 5
+    },
+    {
+      "program_id": "matmul_naive",
+      "category": "matrix",
+      "flags_only": 1.0,
+      "rule_only": 4.2842,
+      "best_agent": 8.2221,
+      "best_agent_strategy": "tiling",
+      "best_agent_run": "b9e2c1557dcf4ea584efc7bfc01c90cd",
+      "runs": 6
+    },
+    {
+      "program_id": "matrix_chain",
+      "category": "dp",
+      "flags_only": 1.599,
+      "rule_only": 1.5774,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "matrix_power",
+      "category": "matrix",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "matvec",
+      "category": "matrix",
+      "flags_only": 1.376,
+      "rule_only": 4.4657,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "mergesort_mallocs",
+      "category": "sorting",
+      "flags_only": 1.0,
+      "rule_only": 1.0787,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "monte_carlo_pi",
+      "category": "stencil",
+      "flags_only": 1.1425,
+      "rule_only": 1.0913,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "nbody_naive",
+      "category": "stencil",
+      "flags_only": 1.1319,
+      "rule_only": 1.1399,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "pagerank_iters",
+      "category": "graph",
+      "flags_only": 1.1448,
+      "rule_only": 1.1383,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "palindrome_count",
+      "category": "string",
+      "flags_only": 1.0,
+      "rule_only": 196.5456,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "particles_aos",
+      "category": "data_layout",
+      "flags_only": 1.9417,
+      "rule_only": 4.5812,
+      "best_agent": 55.2739,
+      "best_agent_strategy": "unroll",
+      "best_agent_run": "91eb46b0bced4e0d83804b5526c242b5",
+      "runs": 5
+    },
+    {
+      "program_id": "quicksort_bad_pivot",
+      "category": "sorting",
+      "flags_only": 1.0,
+      "rule_only": 134.9657,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "rod_cutting_recursive",
+      "category": "dp",
+      "flags_only": 1.128,
+      "rule_only": 3360.6856,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "run_length_encoding",
+      "category": "string",
+      "flags_only": 1.0,
+      "rule_only": 8.503,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "selection_sort",
+      "category": "sorting",
+      "flags_only": 3.8192,
+      "rule_only": 176.755,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "string_reversal_many",
+      "category": "string",
+      "flags_only": 1.0,
+      "rule_only": 1.3836,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "struct_records_scan",
+      "category": "data_layout",
+      "flags_only": 1.0,
+      "rule_only": 8.9329,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "substring_naive",
+      "category": "string",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": 1.9933,
+      "best_agent_strategy": "algorithmic",
+      "best_agent_run": "2a7f5290309147f5aa5d5b2363788c0a",
+      "runs": 5
+    },
+    {
+      "program_id": "syrk",
+      "category": "matrix",
+      "flags_only": 1.0,
+      "rule_only": 1.116,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "transpose",
+      "category": "matrix",
+      "flags_only": 1.0,
+      "rule_only": 1.8655,
+      "best_agent": 2.0446,
+      "best_agent_strategy": "flags",
+      "best_agent_run": "0709225665994fed8f3023cb6c4bc80c",
+      "runs": 5
+    },
+    {
+      "program_id": "trapezoid_integration",
+      "category": "stencil",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "triangle_counting",
+      "category": "graph",
+      "flags_only": 1.0,
+      "rule_only": 1.0,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    },
+    {
+      "program_id": "word_freq_linear",
+      "category": "string",
+      "flags_only": 1.0,
+      "rule_only": 12.816,
+      "best_agent": null,
+      "best_agent_strategy": null,
+      "best_agent_run": null,
+      "runs": 2
+    }
+  ]
+}

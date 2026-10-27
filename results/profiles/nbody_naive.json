@@ -1,0 +1,23 @@
+{
+  "source_sha": "4b11d00f3bf5598d",
+  "report": {
+    "baseline_runtime_ms": 766.1079,
+    "runtime_std_ms": 15.455459593522278,
+    "peak_mem_kb": 1856,
+    "ipc": 2.425978696099148,
+    "l1_miss_rate": 0.0028189751164514375,
+    "llc_miss_rate": 0.21744420399557904,
+    "branch_miss_rate": 0.0016807129521695114,
+    "hotspots": [
+      {
+        "function": "main",
+        "start_line": 22,
+        "end_line": 30,
+        "time_pct": 99.3,
+        "loop_depth": 3
+      }
+    ],
+    "counters_source": "perf",
+    "bottleneck_text": "99% of samples in main() lines 22-30 (loop depth 3), IPC=2.43, L1 miss rate=0.28%, LLC miss rate=21.74%, branch miss rate=0.17%"
+  }
+}
