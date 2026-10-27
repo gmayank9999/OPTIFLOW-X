@@ -51,7 +51,17 @@ uvicorn optiflow.api.main:app --port 8000
 ```
 
 Open http://localhost:8000. Without an API key, the flags-only and rule-based
-baselines still run. For dashboard development, `npm run dev` in `dashboard/`
+baselines still run.
+
+From the command line:
+
+```bash
+python -m optiflow doctor                         # check Docker, image, keys, knowledge base
+python -m optiflow run matmul_naive               # one run, live step-by-step output
+python -m optiflow run lcs --arch event --messaging p2p --prompt reflection
+python -m optiflow run bubble_sort --variant flags_only
+python -m optiflow serve                          # same as the uvicorn command above
+``` For dashboard development, `npm run dev` in `dashboard/`
 serves on :3000 and talks to the API on :8000.
 
 ## How one run works
