@@ -72,10 +72,15 @@ class Pipeline:
 
     # ------------------------------------------------------------------ infra
 
-    def emit(self, type_: str, **data) -> None:
+    def emit(self, type_: str, notify: bool = True, **data) -> dict:
         event = {"type": type_, "t": time.time(), "run_id": self.state.run_id, **data}
         with self._lock:
             self.events.append(event)
+        if notify:
+            self._notify(event)
+        return event
+
+    def _notify(self, event: dict) -> None:
         if self._emit_fn is not None:
             try:
                 self._emit_fn(event)
@@ -370,12 +375,15 @@ class Pipeline:
             self.state.best["candidate"]["source"] = self.state.summary.source
         from optiflow.experiments.store import save_run
 
-        # Emit run_end *before* saving so the persisted event log is complete
-        # (the dashboard's timeline needs the end time).
-        self.emit("run_end", status="failed" if error else "done", stop_reason=self.state.stop_reason,
-                  best_speedup=self.state.best["speedup"] if self.state.best else 1.0,
-                  usage=self.state.usage.model_dump(), messaging=self.state.messaging_stats, error=error)
+        # run_end goes into the persisted log (the timeline needs the end
+        # time), but live listeners hear about it only *after* the report is
+        # on disk -- otherwise a client reloading on run_end finds nothing.
+        end = self.emit("run_end", notify=False, status="failed" if error else "done",
+                        stop_reason=self.state.stop_reason,
+                        best_speedup=self.state.best["speedup"] if self.state.best else 1.0,
+                        usage=self.state.usage.model_dump(), messaging=self.state.messaging_stats, error=error)
         save_run(self.state, self.cfg, self.events)
+        self._notify(end)
         return self.state
 
     def fail(self, exc: BaseException) -> RunState:
