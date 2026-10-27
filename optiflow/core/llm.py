@@ -9,6 +9,7 @@ USD cap real numbers instead of placeholders.
 from __future__ import annotations
 
 import os
+import time
 
 from crewai import LLM, Agent, Task
 
@@ -39,11 +40,33 @@ def _usage_snapshot(llm) -> tuple[int, int, int]:
         return 0, 0, 0
 
 
+TRANSIENT_MARKERS = ("getaddrinfo", "connecterror", "connection reset", "timed out", "timeout",
+                     "temporarily unavailable", "503", "502", "429", "resource_exhausted", "unavailable")
+MAX_TRIES = 4
+
+
+def _is_transient(exc: Exception) -> bool:
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return any(marker in text for marker in TRANSIENT_MARKERS)
+
+
 def call(agent: Agent, description: str, expected_output: str) -> tuple[str, TokenUsage]:
-    """Run one task on `agent` and return (text, usage for this call only)."""
+    """Run one task on `agent` and return (text, usage for this call only).
+
+    Transient failures (DNS blips, dropped connections, rate limits, 5xx)
+    are retried with exponential backoff; anything else propagates. A
+    one-second network hiccup used to kill a whole multi-minute run.
+    """
     before = _usage_snapshot(agent.llm)
-    task = Task(description=description, expected_output=expected_output, agent=agent)
-    output = task.execute_sync(agent)
+    for attempt in range(1, MAX_TRIES + 1):
+        try:
+            task = Task(description=description, expected_output=expected_output, agent=agent)
+            output = task.execute_sync(agent)
+            break
+        except Exception as exc:  # noqa: BLE001 - classified below
+            if attempt == MAX_TRIES or not _is_transient(exc):
+                raise
+            time.sleep(2 ** attempt)  # 2, 4, 8 s
     after = _usage_snapshot(agent.llm)
 
     prompt_tokens = after[0] - before[0]
