@@ -16,6 +16,9 @@ import sys
 from contextlib import AbstractContextManager
 
 from mcp import StdioServerParameters
+from pydantic import BaseModel, ValidationError
+
+from optiflow.core.schemas import BenchResult, BuildResult, CompareResult, ProfileReport, TestResult
 
 SERVER_PARAMS = StdioServerParameters(
     command=sys.executable,
@@ -32,10 +35,52 @@ class ToolError(RuntimeError):
     pass
 
 
+class _ProgramRecord(BaseModel):
+    program_id: str
+    source: str
+    meta: dict
+
+
+class _AnalysisRecord(BaseModel):
+    functions: list[str]
+    loops: list[dict]
+    features: dict[str, float]
+
+
+# Expected shape of every tool's return value. Checked on *every* call,
+# whatever the transport: a malformed (or tampered) tool result becomes a
+# ToolError instead of flowing into an agent's prompt or the Critic.
+TOOL_SCHEMAS: dict[str, type[BaseModel]] = {
+    "get_program": _ProgramRecord,
+    "static_analysis": _AnalysisRecord,
+    "compile_code": BuildResult,
+    "run_tests": TestResult,
+    "run_benchmark": BenchResult,
+    "profile_program": ProfileReport,
+    "compare_to_baseline": CompareResult,
+}
+
+
+def validate_tool_output(name: str, data) -> dict:
+    schema = TOOL_SCHEMAS.get(name)
+    if schema is None:
+        raise ToolError(f"no output schema registered for tool {name!r}")
+    if not isinstance(data, dict):
+        raise ToolError(f"{name} returned {type(data).__name__}, expected an object")
+    try:
+        schema.model_validate(data)
+    except ValidationError as exc:
+        raise ToolError(f"{name} returned malformed data: {exc.errors()[:3]}") from exc
+    return data
+
+
 class ToolClient:
     transport = "abstract"
 
-    def call(self, name: str, **kwargs) -> dict:  # pragma: no cover - interface
+    def call(self, name: str, **kwargs) -> dict:
+        return validate_tool_output(name, self._call(name, **kwargs))
+
+    def _call(self, name: str, **kwargs):  # pragma: no cover - interface
         raise NotImplementedError
 
 
@@ -62,7 +107,7 @@ class McpToolClient(ToolClient, AbstractContextManager):
             self._adapter.__exit__(*exc)
             self._adapter = None
 
-    def call(self, name: str, **kwargs) -> dict:
+    def _call(self, name: str, **kwargs):
         tool = self._tools.get(name)
         if tool is None:
             raise ToolError(f"unknown tool {name!r}")
@@ -82,7 +127,7 @@ class DirectToolClient(ToolClient, AbstractContextManager):
     def __exit__(self, *exc) -> None:
         return None
 
-    def call(self, name: str, **kwargs) -> dict:
+    def _call(self, name: str, **kwargs):
         from optiflow.mcp_server import server
 
         fn = getattr(server, name, None)

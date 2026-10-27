@@ -5,6 +5,7 @@ what this writes.
 
 from __future__ import annotations
 
+import os
 import pathlib
 
 import chromadb
@@ -24,6 +25,14 @@ def get_embedding_fn():
     API) shouldn't pay for loading a sentence-transformer model."""
     global _embedding_fn
     if _embedding_fn is None:
+        # Model-loading progress bars would interleave with CLI/run output.
+        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+        try:
+            from transformers.utils import logging as hf_logging
+
+            hf_logging.disable_progress_bar()
+        except Exception:  # noqa: BLE001 - cosmetic
+            pass
         _embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
     return _embedding_fn
 

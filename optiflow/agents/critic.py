@@ -19,6 +19,7 @@ from optiflow.agents.common import make_agent as _make_agent
 from optiflow.core import llm
 from optiflow.core.budget import RunBudget
 from optiflow.core.schemas import BuildResult, CompareResult, TestResult, TokenUsage, Verdict
+from optiflow.security.guardrails import check_llm_output
 
 MIN_SPEEDUP = 1.05
 P_VALUE_THRESHOLD = 0.05
@@ -132,16 +133,33 @@ def explain(agent: Agent | None, verdict: Verdict, plan_summary: str, diff: str)
     """LLM-written feedback for a rejection. The verdict itself is unchanged."""
     if agent is None or verdict.accepted:
         return verdict, TokenUsage()
-    text, usage = llm.call(
-        agent,
-        description=(
-            f"An optimization attempt was rejected.\nPLAN: {plan_summary}\n"
-            f"EVIDENCE: {verdict.feedback_for_strategist[:1500]}\n"
-            f"DIFF (truncated):\n{diff[:3000]}\n\n"
-            "In at most two sentences: the most likely cause, and the single most "
-            "promising next step for the Strategist. Plain text."
-        ),
-        expected_output="Two sentences of concrete feedback.",
+    try:
+        text, usage = llm.call(
+            agent,
+            description=feedback_prompt(verdict, plan_summary, diff),
+            expected_output="Two sentences of concrete feedback.",
+            guardrail=clean_feedback,
+        )
+    except llm.GuardrailFailed:
+        return verdict, TokenUsage()  # keep the rule-based evidence only
+    return with_feedback(verdict, text), usage
+
+
+def feedback_prompt(verdict: Verdict, plan_summary: str, diff: str) -> str:
+    return (
+        f"An optimization attempt was rejected.\nPLAN: {plan_summary}\n"
+        f"EVIDENCE: {verdict.feedback_for_strategist[:1500]}\n"
+        f"DIFF (truncated):\n{diff[:3000]}\n\n"
+        "In at most two sentences: the most likely cause, and the single most "
+        "promising next step for the Strategist. Plain text."
     )
+
+
+def with_feedback(verdict: Verdict, text: str) -> Verdict:
     feedback = f"{verdict.feedback_for_strategist[:600]} | critic: {text.strip()}"
-    return verdict.model_copy(update={"feedback_for_strategist": feedback}), usage
+    return verdict.model_copy(update={"feedback_for_strategist": feedback})
+
+
+def clean_feedback(text: str) -> tuple[bool, str]:
+    scan = check_llm_output(text, "critic_feedback")
+    return scan.ok, scan.summary()

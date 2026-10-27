@@ -18,6 +18,7 @@ from optiflow.agents.common import numbered
 from optiflow.agents.mcp_tools import ToolClient
 from optiflow.core import llm
 from optiflow.core.schemas import ProgramSummary, TokenUsage
+from optiflow.security.guardrails import check_llm_output, sanitize_source
 
 
 def make_agent(assignment: str | None = None) -> Agent:
@@ -38,7 +39,12 @@ def make_agent(assignment: str | None = None) -> Agent:
 def run(agent: Agent | None, tools: ToolClient, program_id: str) -> tuple[ProgramSummary, TokenUsage]:
     program = tools.call("get_program", program_id=program_id)
     lang = program["meta"]["language"]
-    analysis = tools.call("static_analysis", source=program["source"], lang=lang)
+    # Untrusted input: injection attempts hidden in comments are neutralized
+    # before any model reads the code. Comments don't change semantics, so
+    # this sanitized source is what every agent works from.
+    guard = sanitize_source(program["source"])
+    source = guard.sanitized
+    analysis = tools.call("static_analysis", source=source, lang=lang)
 
     usage = TokenUsage()
     if agent is None:
@@ -48,29 +54,39 @@ def run(agent: Agent | None, tools: ToolClient, program_id: str) -> tuple[Progra
             {k: loop[k] for k in ("function", "line", "end_line", "depth", "iter_vars", "array_accesses")}
             for loop in analysis["loops"]
         ]
-        summary_text, usage = llm.call(
-            agent,
-            description=(
-                f"PROGRAM {program_id} ({lang}):\n{numbered(program['source'])}\n\n"
-                f"LOOPS (from tree-sitter): {json.dumps(loops)}\n"
-                f"STATIC FEATURES: {json.dumps(analysis['features'])}\n\n"
-                "Write a 3-5 line plain-text summary of this program's structure: what "
-                "it computes, which loop nest is likely hottest (cite line numbers), and "
-                "any cache-unfriendly access pattern, redundant work, or algorithmic "
-                "inefficiency. No code, no markdown."
-            ),
-            expected_output="A short structural summary, 3-5 lines, plain text.",
-        )
+        try:
+            summary_text, usage = llm.call(
+                agent,
+                description=(
+                    f"PROGRAM {program_id} ({lang}):\n{numbered(source)}\n\n"
+                    f"LOOPS (from tree-sitter): {json.dumps(loops)}\n"
+                    f"STATIC FEATURES: {json.dumps(analysis['features'])}\n\n"
+                    "Write a 3-5 line plain-text summary of this program's structure: what "
+                    "it computes, which loop nest is likely hottest (cite line numbers), and "
+                    "any cache-unfriendly access pattern, redundant work, or algorithmic "
+                    "inefficiency. No code, no markdown."
+                ),
+                expected_output="A short structural summary, 3-5 lines, plain text.",
+                guardrail=_clean_text,
+            )
+        except llm.GuardrailFailed:
+            summary_text = deterministic_summary(analysis)  # never pass flagged text onward
 
     return ProgramSummary(
         program_id=program_id,
         language=lang,
-        source=program["source"],
+        source=source,
         functions=analysis["functions"],
         loops=analysis["loops"],
         features=analysis["features"],
         summary_text=summary_text.strip(),
+        guardrail_findings=[f.__dict__ for f in guard.findings],
     ), usage
+
+
+def _clean_text(text: str) -> tuple[bool, str]:
+    result = check_llm_output(text, "analyzer_summary")
+    return result.ok, result.summary()
 
 
 def deterministic_summary(analysis: dict) -> str:

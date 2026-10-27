@@ -30,6 +30,7 @@ from optiflow.core import llm
 from optiflow.core.schemas import STRATEGY_NAMES, OptimizationPlan, ProfileReport, ProgramSummary, TokenUsage
 from optiflow.knowledge.retriever import retrieve, retrieve_text
 from optiflow.ml.predictor import rank as rank_strategies
+from optiflow.security.guardrails import check_llm_output
 
 ALIASES = {
     "loop_interchange": "interchange", "loop_permutation": "interchange", "permutation": "interchange",
@@ -47,19 +48,19 @@ ALIASES = {
 }
 
 
-def make_agent(assignment: str | None = None, tools: list | None = None) -> Agent:
+PERSONAS = tuple(prompts.PERSONAS)
+
+
+def make_agent(assignment: str | None = None, tools: list | None = None, persona: str = "default") -> Agent:
+    p = prompts.PERSONAS.get(persona, prompts.PERSONAS["default"])
     return _make_agent(
         "strategist",
-        title="Optimization Strategist",
+        title=p["title"],
         goal=(
             "Choose the source- and flag-level optimizations most likely to give a "
             "verified speedup for this program, without changing its output."
         ),
-        backstory=(
-            "You are a performance engineer expert in GCC/LLVM, cache behaviour, "
-            "loop transformations and vectorization. You only propose changes that "
-            "preserve output, and you read profiles before guessing."
-        ),
+        backstory=p["backstory"],
         assignment=assignment,
         temperature=0.2,
         tools=tools,
@@ -78,6 +79,8 @@ def build_context(
     shared_context: str,
     use_rag: bool = True,
     use_xgb: bool = True,
+    instructions: str = "",
+    persona: str = "default",
 ) -> dict:
     rag_chunks = retrieve(summary, profile, k=4) if use_rag else []
     xgb_ranked = rank_strategies(summary.features, top_k=6) if use_xgb else []
@@ -103,9 +106,12 @@ def build_context(
         "xgb_ranked": ", ".join(f"{n} {p:.2f}" for n, p in xgb_ranked) if xgb_ranked else "(disabled)",
         "rag_chunks": "\n---\n".join(rag_chunks) if rag_chunks else "(disabled)",
         "history_compact": history_compact or "(no attempts yet)",
-        "shared_context": f"\nOTHER AGENTS' NOTES:\n{shared_context}\n" if shared_context else "",
+        "shared_context": (f"\nOTHER AGENTS' NOTES:\n{shared_context}\n" if shared_context else "")
+        + (prompts.USER_GUIDANCE.format(instructions=instructions) if instructions else "")
+        + (f"\n{prompts.PERSONAS[persona]['focus']}\n" if prompts.PERSONAS.get(persona, {}).get("focus") else ""),
         "unsafe_flags": unsafe,
         "_features": summary.features,
+        "_persona": persona,
     }
 
 
@@ -121,12 +127,15 @@ def plan(
     info: dict = {"style": prompt_style, "tool_calls": []}
     fmt = {k: v for k, v in context.items() if not k.startswith("_")}
 
+    persona = context.get("_persona", "default")
     if prompt_style == "react":
-        agent = make_agent(assignment, tools=_react_tools(context["_features"], info))
+        agent = make_agent(assignment, tools=_react_tools(context["_features"], info), persona=persona)
         prompt = prompts.REACT.format(**fmt)
     else:
-        agent = make_agent(assignment)
-        prompt = (prompts.REFLECTION_DRAFT if prompt_style == "reflection" else prompts.STRUCTURED).format(**fmt)
+        agent = make_agent(assignment, persona=persona)
+        template = {"reflection": prompts.REFLECTION_DRAFT, "few_shot": prompts.FEW_SHOT}.get(
+            prompt_style, prompts.STRUCTURED)
+        prompt = template.format(**fmt)
 
     info["prompt_chars"] = len(prompt)
     result = _ask_for_plan(agent, prompt, attempt, usage)
@@ -144,19 +153,31 @@ def plan(
     return result, usage, info
 
 
+def plan_guardrail(text: str) -> tuple[bool, str]:
+    """CrewAI task guardrail: the answer must parse into a valid plan and
+    must not carry injected directives or abuse into the rest of the
+    pipeline. On failure CrewAI re-asks the model with this reason."""
+    scan = check_llm_output(text, "strategist_plan")
+    if not scan.ok:
+        return False, f"output rejected by guardrail ({scan.summary()}); answer with the plan JSON only"
+    try:
+        coerce_plan(text, 0)
+    except (ValueError, TypeError) as exc:
+        return False, f"invalid plan: {exc}. Answer with ONLY the JSON object."
+    return True, "ok"
+
+
 def _ask_for_plan(agent: Agent, prompt: str, attempt: int, usage: TokenUsage) -> OptimizationPlan:
-    text, u = llm.call(agent, prompt, "OptimizationPlan JSON only, no prose.")
+    try:
+        text, u = llm.call(agent, prompt, "OptimizationPlan JSON only, no prose.",
+                           guardrail=plan_guardrail, guardrail_retries=1)
+    except llm.GuardrailFailed as exc:
+        raise PlanError(f"plan rejected by guardrail after retry: {exc}") from exc
     usage.add(u)
     try:
         return coerce_plan(text, attempt)
-    except (ValueError, TypeError) as first_error:
-        text, u = llm.call(agent, prompt + prompts.RETRY_SUFFIX.format(error=str(first_error)[:400]),
-                           "OptimizationPlan JSON only, no prose.")
-        usage.add(u)
-        try:
-            return coerce_plan(text, attempt)
-        except (ValueError, TypeError) as second_error:
-            raise PlanError(f"unparseable plan after retry: {second_error}") from second_error
+    except (ValueError, TypeError) as exc:  # guardrail passed but parsing still failed
+        raise PlanError(f"unparseable plan: {exc}") from exc
 
 
 def _react_tools(features: dict, info: dict) -> list:

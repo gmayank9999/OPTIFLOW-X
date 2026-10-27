@@ -43,6 +43,7 @@ class ProgramSummary(BaseModel):
     loops: list[dict]
     features: dict[str, float]
     summary_text: str = ""
+    guardrail_findings: list[dict] = Field(default_factory=list)  # neutralized injection attempts
 
 
 class ProfileReport(BaseModel):
@@ -154,6 +155,9 @@ class RunState(BaseModel):
     prompt_style: str = "structured"
     model_assignment: str = "single-cloud"
     variant: str = "full"
+    persona: str = "default"
+    critic_backend: str = "crewai"
+    instructions: str = ""
     summary: Optional[ProgramSummary] = None
     profile: Optional[ProfileReport] = None
     history: list[dict] = Field(default_factory=list)
@@ -162,6 +166,7 @@ class RunState(BaseModel):
     usage: TokenUsage = Field(default_factory=TokenUsage)
     usage_by_agent: dict[str, TokenUsage] = Field(default_factory=dict)
     messaging_stats: dict = Field(default_factory=dict)
+    guardrail_events: list[dict] = Field(default_factory=list)
     stop_reason: str = ""
     error: str = ""
     started_at: float = 0.0

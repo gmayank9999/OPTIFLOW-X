@@ -18,6 +18,7 @@ from optiflow.agents.prompts import transformer as prompts
 from optiflow.agents.safety import check as safety_check
 from optiflow.core import llm
 from optiflow.core.schemas import Candidate, OptimizationPlan, TokenUsage
+from optiflow.security.guardrails import sanitize_source
 
 
 def make_agent(assignment: str | None = None) -> Agent:
@@ -53,8 +54,28 @@ def run(
     if feedback:
         prompt += prompts.CRITIC_FEEDBACK_ADDENDUM.format(feedback=feedback)
 
-    text, usage = llm.call(agent, prompt, "A single fenced code block containing the complete rewritten file.")
+    try:
+        text, usage = llm.call(agent, prompt, "A single fenced code block containing the complete rewritten file.",
+                               guardrail=rewrite_guardrail, guardrail_retries=1)
+    except llm.GuardrailFailed as exc:
+        raise CandidateRejected("guardrail", str(exc)[:400]) from exc
     return make_candidate(source, text, plan, flags), usage
+
+
+def rewrite_guardrail(text: str) -> tuple[bool, str]:
+    """CrewAI task guardrail for rewrites: a complete program, nothing that
+    reaches outside the sandbox, and no injected directives in comments
+    (which the next agent would otherwise read)."""
+    code = extract_code(text)
+    if "main" not in code or len(code.strip()) < 20:
+        return False, "return the COMPLETE program in one fenced code block"
+    is_safe, reason = safety_check(code)
+    if not is_safe:
+        return False, f"forbidden construct ({reason}); rewrite without it"
+    guard = sanitize_source(code)
+    if not guard.ok:
+        return False, f"remove instruction-like text from comments ({guard.summary()})"
+    return True, "ok"
 
 
 def make_candidate(original: str, llm_text: str, plan: OptimizationPlan, flags: list[str]) -> Candidate:
