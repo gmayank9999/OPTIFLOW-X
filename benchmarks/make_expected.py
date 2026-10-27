@@ -1,6 +1,7 @@
 """Compiles each benchmark program at -O0 and saves its outputs as the reference.
 
-Run once, before any experiments start. Never regenerate after that point,
+Run once, before any experiments start (optionally with program ids to
+regenerate just those). Never regenerate after that point,
 or accepted/rejected candidates from earlier runs stop being comparable.
 
 Compilation happens in a scratch temp directory, never inside benchmarks/,
@@ -37,10 +38,12 @@ def run_input(scratch_dir: pathlib.Path, program_dir: pathlib.Path, input_rel: s
     return result["stdout"]
 
 
-def main() -> None:
+def main(only: list[str] | None = None) -> None:
     manifest = json.loads((ROOT / "manifest.json").read_text())
     for entry in manifest["programs"]:
         program_id = entry["id"]
+        if only and program_id not in only:
+            continue
         program_dir = ROOT / program_id
         meta = json.loads((program_dir / "meta.json").read_text())
         src_name = "main.c" if meta["language"] == "c" else "main.cpp"
@@ -61,4 +64,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # Optional program ids: regenerate only those (e.g. after resizing one input).
+    main(sys.argv[1:] or None)

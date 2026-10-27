@@ -55,8 +55,13 @@ def run_in_sandbox(
     cpus: str = "1.0",
     cpuset: str | None = None,
     privileged_perf: bool = False,
+    env: dict[str, str] | None = None,
 ) -> dict:
-    """Run `cmd` inside the sandbox image with `workdir` mounted at /work."""
+    """Run `cmd` inside the sandbox image with `workdir` mounted at /work.
+
+    `privileged_perf` adds CAP_PERFMON (and nothing else) so perf can read
+    hardware counters; it's only ever set for the trusted baseline program.
+    """
     settings = get_settings()
     cpuset = cpuset or settings.sandbox_cpuset
     client = _get_client()
@@ -75,9 +80,13 @@ def run_in_sandbox(
         cpuset_cpus=cpuset,
         pids_limit=64,
         read_only=True,
-        tmpfs={"/tmp": "size=64m"},
+        # In-memory scratch. `exec` because the benchmark harness copies
+        # binaries + input here: reading from the host bind mount (Docker
+        # Desktop file sharing) made wall time erratic for input-heavy programs.
+        tmpfs={"/tmp": "size=160m,exec"},
         cap_drop=["ALL"],
-        cap_add=(["PERFMON", "SYS_ADMIN"] if privileged_perf else []),
+        cap_add=(["PERFMON"] if privileged_perf else []),
+        environment=env or {},
         security_opt=["no-new-privileges"],
         user="runner",
     )

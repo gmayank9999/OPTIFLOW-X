@@ -56,7 +56,7 @@ def gen_lcs() -> None:
 
     write("lcs", "in1.txt", "A A\n")
     write("lcs", "in2.txt", f"{rand_str(33)} {rand_str(29)}\n")
-    write("lcs", "in3.txt", f"{rand_str(6000)} {rand_str(6000)}\n")
+    write("lcs", "in3.txt", f"{rand_str(8000)} {rand_str(8000)}\n")
 
 
 def gen_substring_naive() -> None:
@@ -81,7 +81,7 @@ def _random_array_program(name: str, seed: int, bench_n: int, lo: int = -1_000_0
 
 
 def gen_insertion_sort() -> None:
-    _random_array_program("insertion_sort", 5005, bench_n=12000)
+    _random_array_program("insertion_sort", 5005, bench_n=72000)
 
 
 def gen_mergesort_mallocs() -> None:
@@ -89,16 +89,16 @@ def gen_mergesort_mallocs() -> None:
     write("mergesort_mallocs", "in1.txt", "0\n\n")
     small = [rng.randint(-1000, 1000) for _ in range(33)]
     write("mergesort_mallocs", "in2.txt", f"33\n{' '.join(map(str, small))}\n")
-    bench = [rng.randint(-1_000_000, 1_000_000) for _ in range(400000)]
-    write("mergesort_mallocs", "in3.txt", f"400000\n{' '.join(map(str, bench))}\n")
+    bench = [rng.randint(-1_000_000, 1_000_000) for _ in range(2000000)]
+    write("mergesort_mallocs", "in3.txt", f"2000000\n{' '.join(map(str, bench))}\n")
 
 
 def gen_count_inversions() -> None:
-    _random_array_program("count_inversions", 7007, bench_n=9000)
+    _random_array_program("count_inversions", 7007, bench_n=27000)
 
 
 def gen_selection_sort() -> None:
-    _random_array_program("selection_sort", 8008, bench_n=12000)
+    _random_array_program("selection_sort", 8008, bench_n=30000)
 
 
 def gen_quicksort_bad_pivot() -> None:
@@ -106,7 +106,7 @@ def gen_quicksort_bad_pivot() -> None:
     # its O(n^2) worst case instead of the typical O(n log n) case.
     write("quicksort_bad_pivot", "in1.txt", "1\n5\n")
     write("quicksort_bad_pivot", "in2.txt", "33\n" + " ".join(str(i) for i in range(33)) + "\n")
-    n = 35000
+    n = 60000
     write("quicksort_bad_pivot", "in3.txt", f"{n}\n" + " ".join(str(i) for i in range(n, 0, -1)) + "\n")
 
 
@@ -120,7 +120,7 @@ def gen_linear_search_many() -> None:
 
     write("linear_search_many", "in1.txt", gen("linear_search_many", 1, 1))
     write("linear_search_many", "in2.txt", gen("linear_search_many", 33, 10))
-    write("linear_search_many", "in3.txt", gen("linear_search_many", 20000, 4000))
+    write("linear_search_many", "in3.txt", gen("linear_search_many", 20000, 80000))
 
 
 def gen_binary_search_resort() -> None:
@@ -133,7 +133,7 @@ def gen_binary_search_resort() -> None:
 
     write("binary_search_resort", "in1.txt", gen(1, 1))
     write("binary_search_resort", "in2.txt", gen(33, 10))
-    write("binary_search_resort", "in3.txt", gen(1500, 400))
+    write("binary_search_resort", "in3.txt", gen(1500, 1200))
 
 
 def _random_adjacency(rng: random.Random, n: int, edge_prob: float, directed: bool = True) -> list[list[int]]:
@@ -161,7 +161,7 @@ def gen_bfs_matrix() -> None:
     rng = random.Random(11011)
     write("bfs_matrix", "in1.txt", "1 0\n0\n")
     _write_adjacency("bfs_matrix", "in2.txt", 33, "0", _random_adjacency(rng, 33, 0.3, directed=False))
-    _write_adjacency("bfs_matrix", "in3.txt", 900, "0", _random_adjacency(rng, 900, 0.02, directed=False))
+    _write_adjacency("bfs_matrix", "in3.txt", 2500, "0", _random_adjacency(rng, 2500, 0.01, directed=False))
 
 
 def gen_dijkstra_v2() -> None:
@@ -177,7 +177,7 @@ def gen_dijkstra_v2() -> None:
 
     write("dijkstra_v2", "in1.txt", "1 0\n0\n")
     _write_adjacency("dijkstra_v2", "in2.txt", 33, "0", weighted(33, 0.3))
-    _write_adjacency("dijkstra_v2", "in3.txt", 700, "0", weighted(700, 0.02))
+    _write_adjacency("dijkstra_v2", "in3.txt", 2200, "0", weighted(2200, 0.01))
 
 
 def gen_dfs_recursive() -> None:
@@ -200,28 +200,28 @@ def gen_bellman_ford() -> None:
 
     write("bellman_ford", "in1.txt", "1 0\n0\n")
     _write_adjacency("bellman_ford", "in2.txt", 33, "0", weighted(33, 0.3))
-    _write_adjacency("bellman_ford", "in3.txt", 250, "0", weighted(250, 0.1))
+    _write_adjacency("bellman_ford", "in3.txt", 700, "0", weighted(700, 0.05))
 
 
 def gen_connected_components() -> None:
     rng = random.Random(15015)
     write("connected_components", "in1.txt", "1\n0\n")
     _write_adjacency("connected_components", "in2.txt", 33, "", _random_adjacency(rng, 33, 0.1, directed=False))
-    _write_adjacency("connected_components", "in3.txt", 1100, "", _random_adjacency(rng, 1100, 0.01, directed=False))
+    _write_adjacency("connected_components", "in3.txt", 2500, "", _random_adjacency(rng, 2500, 0.002, directed=False))
 
 
 def gen_pagerank_iters() -> None:
     rng = random.Random(16016)
     write("pagerank_iters", "in1.txt", "1 1\n0\n")
     _write_adjacency("pagerank_iters", "in2.txt", 33, "20", _random_adjacency(rng, 33, 0.3, directed=True))
-    _write_adjacency("pagerank_iters", "in3.txt", 550, "60", _random_adjacency(rng, 550, 0.05, directed=True))
+    _write_adjacency("pagerank_iters", "in3.txt", 550, "900", _random_adjacency(rng, 550, 0.05, directed=True))
 
 
 def gen_triangle_counting() -> None:
     rng = random.Random(17017)
     write("triangle_counting", "in1.txt", "1\n0\n")
     _write_adjacency("triangle_counting", "in2.txt", 33, "", _random_adjacency(rng, 33, 0.3, directed=False))
-    _write_adjacency("triangle_counting", "in3.txt", 500, "", _random_adjacency(rng, 500, 0.1, directed=False))
+    _write_adjacency("triangle_counting", "in3.txt", 1500, "", _random_adjacency(rng, 1500, 0.05, directed=False))
 
 
 def gen_edit_distance() -> None:
@@ -233,7 +233,7 @@ def gen_edit_distance() -> None:
 
     write("edit_distance", "in1.txt", "A A\n")
     write("edit_distance", "in2.txt", f"{rand_str(33)} {rand_str(29)}\n")
-    write("edit_distance", "in3.txt", f"{rand_str(4500)} {rand_str(4500)}\n")
+    write("edit_distance", "in3.txt", f"{rand_str(8000)} {rand_str(8000)}\n")
 
 
 def gen_knapsack01() -> None:
@@ -247,16 +247,16 @@ def gen_knapsack01() -> None:
 
     write("knapsack01", "in1.txt", gen(1, 10))
     write("knapsack01", "in2.txt", gen(33, 200))
-    write("knapsack01", "in3.txt", gen(500, 8000))
+    write("knapsack01", "in3.txt", gen(2000, 36000))
 
 
 def gen_lis_on2() -> None:
-    _random_array_program("lis_on2", 20020, bench_n=9000, lo=-100000, hi=100000)
+    _random_array_program("lis_on2", 20020, bench_n=25000, lo=-100000, hi=100000)
 
 
 def gen_matrix_chain() -> None:
     rng = random.Random(21021)
-    n = 400
+    n = 1300
     dims = [rng.randint(2, 100) for _ in range(n + 1)]
     write("matrix_chain", "in3.txt", f"{n}\n{' '.join(map(str, dims))}\n")
 
@@ -272,12 +272,12 @@ def gen_palindrome_count() -> None:
     # single-character alphabet: every substring is a palindrome, so
     # is_palindrome() always runs to completion instead of exiting on the
     # first mismatch -- this is what actually makes it O(n^3).
-    write("palindrome_count", "in3.txt", "A" * 2200 + "\n")
+    write("palindrome_count", "in3.txt", "A" * 3000 + "\n")
 
 
 def gen_word_freq_linear() -> None:
     rng = random.Random(23023)
-    vocab = [f"word{i}" for i in range(200)]
+    vocab = [f"word{i}" for i in range(600)]
 
     def gen(n: int) -> str:
         words = [rng.choice(vocab) for _ in range(n)]
@@ -285,7 +285,7 @@ def gen_word_freq_linear() -> None:
 
     write("word_freq_linear", "in1.txt", gen(1))
     write("word_freq_linear", "in2.txt", gen(33))
-    write("word_freq_linear", "in3.txt", gen(15000))
+    write("word_freq_linear", "in3.txt", gen(400000))
 
 
 def gen_string_reversal_many() -> None:
@@ -301,7 +301,7 @@ def gen_string_reversal_many() -> None:
 
     write("string_reversal_many", "in1.txt", gen(1, 1))
     write("string_reversal_many", "in2.txt", gen(33, 5))
-    write("string_reversal_many", "in3.txt", gen(15000, 400))
+    write("string_reversal_many", "in3.txt", gen(15000, 3200))
 
 
 def gen_run_length_encoding() -> None:

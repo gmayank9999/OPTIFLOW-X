@@ -1,0 +1,23 @@
+{
+  "source_sha": "ed7048236c011c15",
+  "report": {
+    "baseline_runtime_ms": 1022.3727,
+    "runtime_std_ms": 38.38121988625431,
+    "peak_mem_kb": 1668,
+    "ipc": 4.870070563728501,
+    "l1_miss_rate": 5.735290087027952e-06,
+    "llc_miss_rate": 0.4880724488293329,
+    "branch_miss_rate": 0.0009695643524346977,
+    "hotspots": [
+      {
+        "function": "is_palindrome",
+        "start_line": 7,
+        "end_line": 10,
+        "time_pct": 98.2,
+        "loop_depth": 1
+      }
+    ],
+    "counters_source": "perf",
+    "bottleneck_text": "98% of samples in is_palindrome() lines 7-10 (loop depth 1), IPC=4.87, L1 miss rate=0.00%, LLC miss rate=48.81%, branch miss rate=0.10%"
+  }
+}
