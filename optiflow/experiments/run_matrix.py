@@ -22,6 +22,7 @@ import yaml
 
 from optiflow.architectures.base import RunConfig, build
 from optiflow.core.console import fix_windows_console_encoding
+from optiflow.core.llm import QuotaExhausted
 from optiflow.experiments.store import read_rows
 from optiflow.tools.registry import list_programs
 
@@ -92,6 +93,11 @@ def main() -> None:
                 print(f"  {pid:24s} {label:60s} {state.best['speedup']:6.2f}x  "
                       f"{len(state.history)} att  ${state.usage.cost_usd:.4f}  {time.time() - t0:5.0f}s  "
                       f"[{state.stop_reason}]", flush=True)
+            except QuotaExhausted as exc:
+                print(f"  {pid:24s} {label:60s} STOPPED: LLM provider quota exhausted; the matrix will resume "
+                      f"from here when re-run.
+  {str(exc)[:240]}", file=sys.stderr, flush=True)
+                sys.exit(3)
             except Exception as exc:  # noqa: BLE001 - log and keep the matrix going
                 print(f"  {pid:24s} {label:60s} FAILED: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
 

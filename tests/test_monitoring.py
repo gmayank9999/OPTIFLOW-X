@@ -113,3 +113,25 @@ def test_pipeline_forwards_framework_events_without_dropping_them(monkeypatch):
     kinds = [e.get("kind") for e in events if e["type"] == "agent_event"]
     assert kinds == ["crewai_task_done", "guardrail"]
     assert p.state.guardrail_events and p.state.guardrail_events[0]["stage"] == "task_output"
+
+
+def test_daily_quota_is_not_retried_and_is_reported_distinctly(monkeypatch):
+    daily = ("429 RESOURCE_EXHAUSTED. Quota exceeded for metric: generate_content_free_tier_requests, "
+             "quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', retryDelay': '72385s'")
+    per_minute = "429 RESOURCE_EXHAUSTED. Quota exceeded per minute, retryDelay': '7s'"
+    assert llm._quota_exhausted(RuntimeError(daily)) and not llm._is_transient(RuntimeError(daily))
+    assert not llm._quota_exhausted(RuntimeError(per_minute)) and llm._is_transient(RuntimeError(per_minute))
+
+    calls = {"n": 0}
+
+    class QuotaTask:
+        def __init__(self, **kw): pass
+
+        def execute_sync(self, agent):
+            calls["n"] += 1
+            raise RuntimeError(daily)
+
+    monkeypatch.setattr(llm, "Task", QuotaTask)
+    with pytest.raises(llm.QuotaExhausted):
+        llm.call(FakeAgent(), "d", "e")
+    assert calls["n"] == 1        # no pointless retries

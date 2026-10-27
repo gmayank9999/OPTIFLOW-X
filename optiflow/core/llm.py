@@ -49,7 +49,29 @@ TRANSIENT_MARKERS = ("getaddrinfo", "connecterror", "connection reset", "timed o
 MAX_TRIES = 4
 
 
+class QuotaExhausted(RuntimeError):
+    """The provider's quota is used up for a long time (e.g. a per-day free
+    tier limit). Retrying within a run is pointless; callers running many
+    runs (the experiment matrix) should stop instead of failing every cell."""
+
+
+_RETRY_DELAY = re.compile(r"retryDelay'?\"?:\s*'?\"?(\d+)s", re.I)
+LONG_QUOTA_SECONDS = 120
+
+
+def _quota_exhausted(exc: Exception) -> bool:
+    text = str(exc)
+    if "429" not in text and "RESOURCE_EXHAUSTED" not in text:
+        return False
+    if re.search(r"PerDay|per day|daily", text, re.I):
+        return True
+    m = _RETRY_DELAY.search(text)
+    return bool(m and int(m.group(1)) > LONG_QUOTA_SECONDS)
+
+
 def _is_transient(exc: Exception) -> bool:
+    if _quota_exhausted(exc):
+        return False
     text = f"{type(exc).__name__}: {exc}".lower()
     return any(marker in text for marker in TRANSIENT_MARKERS)
 
@@ -158,6 +180,9 @@ def call(agent: Agent, description: str, expected_output: str,
             if guardrail and _GUARDRAIL_EXHAUSTED.search(str(exc)):
                 _emit("guardrail", stage="exhausted", ok=False, detail=str(exc)[:300])
                 raise GuardrailFailed(str(exc)) from exc
+            if _quota_exhausted(exc):
+                _emit("llm_error", error="provider quota exhausted")
+                raise QuotaExhausted(str(exc)[:600]) from exc
             if attempt == MAX_TRIES or not _is_transient(exc):
                 _emit("llm_error", error=f"{type(exc).__name__}: {str(exc)[:300]}")
                 raise
