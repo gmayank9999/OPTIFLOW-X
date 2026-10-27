@@ -24,6 +24,13 @@ mechanisms (blackboard, peer-to-peer, broadcast), three prompting styles
 (structured, ReAct, reflection), three model assignments, and a set of
 ablations, compared on success, speedup, latency and cost.
 
+## Course requirements
+
+[`REQUIREMENTS.md`](REQUIREMENTS.md) maps each course requirement (shared
+state and messaging, MCP tools, Pydantic output, agentic patterns,
+callbacks, A2A across CrewAI and Google ADK, guardrails, observability,
+evaluation, deployment) to the code, the tests and the evidence.
+
 ## Status
 
 See [`STATUS.md`](STATUS.md) for what has been measured so far, what hasn't,
@@ -86,13 +93,28 @@ step is an OpenTelemetry span with model, tokens and cost
 (`results/traces/<run_id>.jsonl`), and every run is saved to
 `results/runs/<run_id>/` plus a row in `results/runs.csv`.
 
+### Two frameworks, one protocol
+
+The seven-agent team is built with **CrewAI**. Rejection feedback can
+instead come from a **Google ADK** agent (the Verification Reviewer),
+served with ADK's `to_a2a` and called by the CrewAI pipeline over the
+**A2A protocol** (`critic_backend: adk_a2a`, or `--critic adk_a2a` on the
+CLI). In docker-compose the reviewer is a separate service.
+
+### Guardrails
+
+User guidance, program source (C comments are an injection vector) and
+LLM output are screened for prompt injection and abusive language; CrewAI
+task guardrails force well-formed, safe plans and rewrites; every MCP
+tool result is type-checked. See the dashboard's Security page.
+
 ### Architectures, messaging, prompting
 
 - **Sequential**: fixed loop in Python.
 - **Hierarchical**: a Manager LLM chooses `plan` / `retransform` / `stop` each turn, inside deterministic guardrails.
 - **Event-driven**: handlers on an event bus; profiling the baseline runs in parallel with the Analyzer.
 - **Messaging**: all step inputs are read *from the channel*. Blackboard lets agents pull any topic; peer-to-peer delivers only along a routing table; broadcast pushes everything into every inbox. What the Strategist sees, and pays tokens for, differs accordingly.
-- **Prompting**: structured (RAG + ranking injected), ReAct (RAG + ranking as tools the agent calls), reflection (draft, self-critique, revise).
+- **Prompting**: structured (RAG + ranking injected), ReAct (RAG + ranking as tools the agent calls), reflection (draft, self-critique, revise), few-shot (worked examples); plus four Strategist personas (content variance).
 
 ## Measurement
 
@@ -125,6 +147,12 @@ baselines, E1 architecture, E2 messaging, E3 prompting, E4 model
 assignment, E5 ablations. Analysis reports geometric-mean speedup, success
 with Wilson intervals, Friedman + Holm-corrected Wilcoxon tests on paired
 programs, cost/latency percentiles and a cost-vs-success Pareto front.
+
+## Deployment
+
+`docker compose build sandbox && docker compose up -d --build` runs the
+app and the ADK reviewer. It needs a host with a Docker daemon (a VM, not
+serverless); `deploy/README.md` has a Google Compute Engine recipe.
 
 ## Tests
 
