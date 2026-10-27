@@ -116,8 +116,9 @@ def _smaller_input(meta: dict) -> str:
 
 def _perf_profile(workdir: str, input_name: str, timeout_s: int) -> tuple[dict, dict[int, float]]:
     cmd = (
-        f"perf-raw stat -x, -e {_PERF_EVENTS} -o /tmp/stat.csv ./prog < {input_name} > /dev/null; "
-        f"perf-raw record -q -F 997 -o /tmp/perf.data ./prog < {input_name} > /dev/null 2>&1; "
+        f"cp prog /tmp/prog; "  # exec from tmpfs: the work dir may be noexec
+        f"perf-raw stat -x, -e {_PERF_EVENTS} -o /tmp/stat.csv /tmp/prog < {input_name} > /dev/null; "
+        f"perf-raw record -q -F 997 -o /tmp/perf.data /tmp/prog < {input_name} > /dev/null 2>&1; "
         f"perf-raw report -i /tmp/perf.data --stdio --no-children --sort srcline -q 2>/dev/null | head -400; "
         f"echo {_STAT_MARK}; cat /tmp/stat.csv"
     )
@@ -202,8 +203,8 @@ def _loop_hotspots(line_pct: dict[int, float], analysis: dict, top: int = 3) -> 
 # --- fallbacks ---------------------------------------------------------------
 
 def _cachegrind(workdir: str, input_name: str, timeout_s: int) -> dict:
-    cmd = (f"valgrind --tool=cachegrind --cache-sim=yes --cachegrind-out-file=/tmp/cg.out "
-           f"./prog < {input_name} > /dev/null")
+    cmd = (f"cp prog /tmp/prog && valgrind --tool=cachegrind --cache-sim=yes --cachegrind-out-file=/tmp/cg.out "
+           f"/tmp/prog < {input_name} > /dev/null")
     result = run_in_sandbox(workdir, cmd, timeout_s=timeout_s * 30)
     text = result["stderr"]
     out: dict[str, float] = {}
@@ -230,8 +231,8 @@ def _gprof_hotspots(source: str, lang: str, bench_input: pathlib.Path, timeout_s
     (workdir / bench_input.name).write_bytes(bench_input.read_bytes())
     fname = "main.c" if lang == "c" else "main.cpp"
     cc = "gcc" if lang == "c" else "g++"
-    cmd = (f"{cc} -O2 -g -pg {fname} -o prog_pg -lm && ./prog_pg < {bench_input.name} > /dev/null "
-           f"&& gprof -b -p prog_pg gmon.out")
+    cmd = (f"{cc} -O2 -g -pg {fname} -o /tmp/prog_pg -lm && cd /tmp && ./prog_pg < /work/{bench_input.name} "
+           f"> /dev/null && gprof -b -p prog_pg gmon.out")
     result = run_in_sandbox(str(workdir), cmd, timeout_s=timeout_s * 3 + 60)
 
     spans = {f["name"]: f for f in analysis.get("function_spans", [])}

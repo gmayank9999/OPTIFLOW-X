@@ -20,10 +20,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     CREWAI_DISABLE_TELEMETRY=true
 WORKDIR /app
 
-# CPU-only torch first, so sentence-transformers doesn't pull CUDA wheels (GBs).
-RUN pip install --index-url https://download.pytorch.org/whl/cpu torch
-COPY requirements.txt ./
-RUN pip install -r requirements.txt
+# constraints.txt pins every package to the versions the test suite passed
+# with (pip freeze of the development environment), so the deployed image
+# runs exactly what was tested. CPU-only torch first, so sentence-transformers
+# doesn't pull CUDA wheels (GBs).
+COPY requirements.txt constraints.txt ./
+RUN pip install --index-url https://download.pytorch.org/whl/cpu "torch==$(grep -i '^torch==' constraints.txt | cut -d= -f3)"
+RUN pip install -r requirements.txt -c constraints.txt
 
 COPY optiflow/ optiflow/
 COPY benchmarks/ benchmarks/

@@ -124,4 +124,8 @@ def _run_with_input(workdir: str, input_path: pathlib.Path, timeout_s: int,
     dest = pathlib.Path(workdir) / input_path.name
     if not dest.exists():
         dest.write_bytes(input_path.read_bytes())
-    return run_in_sandbox(workdir, f"./prog < {input_path.name}", timeout_s=timeout_s, env=env)
+    # Execute from the container's own tmpfs, never from the bind mount:
+    # the shared work dir may be on a noexec filesystem (Docker Desktop's VM,
+    # hardened hosts that mount /tmp or /var noexec).
+    return run_in_sandbox(workdir, f"cp prog /tmp/prog && /tmp/prog < {input_path.name}",
+                          timeout_s=timeout_s, env=env)

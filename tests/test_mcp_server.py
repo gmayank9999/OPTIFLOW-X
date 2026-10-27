@@ -56,3 +56,13 @@ def test_tools_work_over_the_real_stdio_protocol():
         assert build["ok"] and build["dropped_flags"] == ["-Ofast"]  # exact-compare program
         tests = tools.call("run_tests", candidate_id=build["candidate_id"], program_id="fib_recursive")
         assert tests["all_pass"] and tests["sanitizer_ok"] is True
+
+
+def test_tool_server_inherits_the_full_environment(monkeypatch):
+    """Regression: the MCP SDK's default whitelist dropped OPTIFLOW_WORKDIR,
+    so in docker-compose the tool server built candidates where the host's
+    Docker daemon couldn't see them."""
+    from optiflow.agents.mcp_tools import server_params
+
+    monkeypatch.setenv("OPTIFLOW_WORKDIR", "/var/optiflow/work")
+    assert server_params().env["OPTIFLOW_WORKDIR"] == "/var/optiflow/work"

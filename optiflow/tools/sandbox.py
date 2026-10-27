@@ -7,6 +7,7 @@ the codebase that executes candidate C/C++ code.
 
 from __future__ import annotations
 
+import os
 import time
 
 import docker
@@ -45,6 +46,23 @@ def _get_client():
     raise DockerException(
         "Could not connect to the Docker daemon. Is Docker Desktop running?"
     )
+
+
+def sandbox_user() -> str:
+    """The (always non-root) user candidate code runs as.
+
+    Candidate directories are created by this process with mode 0700. On
+    a Linux host -- e.g. the deployed app container driving the host's
+    Docker daemon -- the sandbox must run as *this* uid to read them;
+    making them world-writable instead would let one candidate tamper with
+    another's files. On Windows/macOS (Docker Desktop file sharing ignores
+    Unix permissions), or if this process is root, use the image's
+    dedicated `runner` user.
+    """
+    getuid = getattr(os, "getuid", None)
+    if getuid is None or getuid() == 0:
+        return "runner"
+    return f"{getuid()}:{os.getgid()}"
 
 
 def run_in_sandbox(
@@ -88,7 +106,7 @@ def run_in_sandbox(
         cap_add=(["PERFMON"] if privileged_perf else []),
         environment=env or {},
         security_opt=["no-new-privileges"],
-        user="runner",
+        user=sandbox_user(),
     )
 
     t0 = time.perf_counter()

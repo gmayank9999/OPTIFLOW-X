@@ -71,3 +71,13 @@ def test_runs_as_non_root_without_capabilities():
     uid, cap = result["stdout"].split("\n")[:2]
     assert uid.strip() != "0"
     assert cap.split()[-1] == "0000000000000000"
+
+
+def test_sandbox_user_is_never_root(monkeypatch):
+    import optiflow.tools.sandbox as sb
+
+    monkeypatch.setattr(sb.os, "getuid", lambda: 10001, raising=False)
+    monkeypatch.setattr(sb.os, "getgid", lambda: 10001, raising=False)
+    assert sb.sandbox_user() == "10001:10001"   # same uid as the 0700 candidate dirs
+    monkeypatch.setattr(sb.os, "getuid", lambda: 0, raising=False)
+    assert sb.sandbox_user() == "runner"        # never run candidates as root

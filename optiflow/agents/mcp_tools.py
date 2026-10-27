@@ -12,6 +12,7 @@ tests of the orchestration logic, not for real runs.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from contextlib import AbstractContextManager
 
@@ -20,10 +21,20 @@ from pydantic import BaseModel, ValidationError
 
 from optiflow.core.schemas import BenchResult, BuildResult, CompareResult, ProfileReport, TestResult
 
-SERVER_PARAMS = StdioServerParameters(
-    command=sys.executable,
-    args=["-m", "optiflow.mcp_server.server"],
-)
+def server_params() -> StdioServerParameters:
+    """The MCP SDK starts stdio servers with only a small whitelist of
+    environment variables (PATH, HOME, ...). The tool server needs the
+    parent's full configuration -- e.g. OPTIFLOW_WORKDIR, set by
+    docker-compose rather than .env, decides where candidate builds live --
+    so pass it through explicitly."""
+    return StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "optiflow.mcp_server.server"],
+        env=dict(os.environ),
+    )
+
+
+SERVER_PARAMS = server_params()
 
 TOOL_NAMES = (
     "get_program", "static_analysis", "compile_code", "run_tests",
@@ -94,7 +105,7 @@ class McpToolClient(ToolClient, AbstractContextManager):
     def __enter__(self) -> "McpToolClient":
         from crewai_tools import MCPServerAdapter
 
-        self._adapter = MCPServerAdapter(SERVER_PARAMS)
+        self._adapter = MCPServerAdapter(server_params())
         tools = self._adapter.__enter__()
         self._tools = {t.name: t for t in tools}
         missing = set(TOOL_NAMES) - set(self._tools)
