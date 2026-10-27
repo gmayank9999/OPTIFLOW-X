@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens. Values are "R G B" triplets so Tailwind can apply alpha. */
+:root {
+  --paper: 246 245 241;        /* page */
+  --surface: 255 255 255;      /* cards */
+  --sunken: 241 240 235;       /* code wells, table heads */
+  --ink: 22 24 26;
+  --muted: 102 106 110;
+  --faint: 154 158 160;
+  --rule: 226 224 217;
+  --accent: 15 110 90;         /* verified */
+  --accent-soft: 223 238 232;
+  --warn: 176 116 23;          /* noisy / caution */
+  --warn-soft: 248 238 216;
+  --bad: 176 64 56;            /* rejected */
+  --bad-soft: 248 228 225;
+  --info: 59 91 140;
+
+  /* agent lane colors: muted, distinguishable, not a rainbow */
+  --lane-analyzer: 98 113 135;
+  --lane-profiler: 126 104 160;
+  --lane-manager: 120 120 120;
+  --lane-strategist: 15 110 90;
+  --lane-transformer: 59 91 140;
+  --lane-compiler_exec: 150 110 60;
+  --lane-benchmark: 176 116 23;
+  --lane-critic: 176 64 56;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: 14 15 16;
+    --surface: 21 23 25;
+    --sunken: 17 19 20;
+    --ink: 232 230 225;
+    --muted: 152 156 160;
+    --faint: 104 108 112;
+    --rule: 40 43 46;
+    --accent: 72 196 160;
+    --accent-soft: 20 52 44;
+    --warn: 222 168 76;
+    --warn-soft: 56 44 22;
+    --bad: 230 120 108;
+    --bad-soft: 60 30 28;
+    --info: 128 160 210;
+    --lane-analyzer: 140 156 180;
+    --lane-profiler: 170 148 206;
+    --lane-manager: 160 160 160;
+    --lane-strategist: 72 196 160;
+    --lane-transformer: 128 160 210;
+    --lane-compiler_exec: 200 160 104;
+    --lane-benchmark: 222 168 76;
+    --lane-critic: 230 120 108;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: 14 15 16;
+  --surface: 21 23 25;
+  --sunken: 17 19 20;
+  --ink: 232 230 225;
+  --muted: 152 156 160;
+  --faint: 104 108 112;
+  --rule: 40 43 46;
+  --accent: 72 196 160;
+  --accent-soft: 20 52 44;
+  --warn: 222 168 76;
+  --warn-soft: 56 44 22;
+  --bad: 230 120 108;
+  --bad-soft: 60 30 28;
+  --info: 128 160 210;
+  --lane-analyzer: 140 156 180;
+  --lane-profiler: 170 148 206;
+  --lane-manager: 160 160 160;
+  --lane-strategist: 72 196 160;
+  --lane-transformer: 128 160 210;
+  --lane-compiler_exec: 200 160 104;
+  --lane-benchmark: 222 168 76;
+  --lane-critic: 230 120 108;
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: rgb(var(--paper));
+  color: rgb(var(--ink));
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--muted));
+}
+
+::selection {
+  background: rgb(var(--accent) / 0.22);
+}
+
+/* Hairline scrollbars that don't shout */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--rule)) transparent;
+}
+
+.code-well {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 19px;
+  tab-size: 4;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.live-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+@keyframes grow-in {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.bar-grow {
+  transform-origin: left center;
+  animation: grow-in 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot, .bar-grow { animation: none; }
+}
