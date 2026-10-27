@@ -7,7 +7,7 @@ Importing this module populates build_dataset.TEMPLATES as a side
 effect via register_template().
 """
 
-from optiflow.ml.build_dataset import register_template
+from optiflow.ml.build_dataset import TEMPLATES, register_template  # noqa: F401  (TEMPLATES re-exported)
 
 register_template("matmul_naive", "tiling", """
 #include <stdio.h>
@@ -367,3 +367,6 @@ int main(void) {
     free(a); return 0;
 }
 """)
+
+# The second batch of variants registers itself on import.
+import optiflow.ml.templates_more  # noqa: E402,F401

@@ -1,26 +1,32 @@
-"""Builds the labeled sweep dataset the XGBoost predictor trains on.
+"""Builds the labeled dataset the XGBoost predictor trains on.
 
-Two sources of labeled rows, no LLM involved in either:
+Sources of labeled rows, no LLM involved in the first two:
 
 1. Flag sweeps, applied to every program: -O3, -O3 -march=native,
-   -O3 -funroll-loops, clang -O3. Purely mechanical, so this alone
-   gives real coverage of the "flags" strategy across the whole suite.
+   -O3 -funroll-loops, clang -O3. Purely mechanical.
+2. Hand-written, single-strategy source variants (templates.py,
+   templates_more.py) for programs where a strategy obviously applies.
+   Writing them by hand is what keeps the label honest: the transform
+   does what its name says, and it's verified against the reference
+   outputs before it's labeled.
+3. The agents' own judged attempts (results/experience.jsonl), used only
+   to fill labels the sweep left untested (Section 11.3, step 3).
 
-2. Hand-written, templated source variants for the subset of programs
-   where a single strategy obviously applies (Section 11.3) -- a
-   blocked matmul for the stride-mismatch matrix programs, a memoized
-   rewrite for the recursive ones, and so on. These are deliberately
-   *not* auto-generated: writing them by hand is what keeps the label
-   honest (the transform actually does what its name says).
+Labels are 1 (verified speedup >= 1.10, p < 0.05), 0 (tested, no such
+speedup), or *missing* (never tested). Missing is not the same as 0: the
+earlier version wrote untested strategies as negatives, which taught the
+model that e.g. "tiling never helps" for 48 programs nobody tried tiling
+on. The trainer only learns each strategy from rows where it was tested.
 
-Each variant is compiled, run against the program's own reference
-outputs, and benchmarked against the -O2 baseline. label = 1 iff the
-speedup is >= 1.10 with the same significance test the Critic uses.
+All variants of one program are benchmarked in a single interleaved
+session together with the baseline (bench.compare_many), so they're
+compared under identical machine conditions.
 """
 
 from __future__ import annotations
 
 import csv
+import json
 import pathlib
 
 from optiflow.ml.features import FEATURE_COLUMNS, STRATEGY_COLUMNS, to_vector
@@ -31,6 +37,8 @@ from optiflow.tools import registry
 from optiflow.tools import verify as verify_tool
 
 OUT_PATH = pathlib.Path("results/ml_dataset.csv")
+DETAIL_PATH = pathlib.Path("results/ml_sweep_detail.json")
+EXPERIENCE_PATH = pathlib.Path("results/experience.jsonl")
 LABEL_THRESHOLD = 1.10
 
 FLAG_VARIANTS: list[tuple[str, str, list[str]]] = [
@@ -45,62 +53,118 @@ TEMPLATES: dict[str, dict[str, str]] = {}
 
 
 def register_template(program_id: str, strategy: str, source: str) -> None:
-    TEMPLATES.setdefault(program_id, {})[strategy] = source
+    TEMPLATES.setdefault(program_id, {})[strategy] = source.lstrip("\n")
 
 
-def _evaluate(program_id: str, lang: str, source: str, compiler: str, flags: list[str]) -> bool | None:
-    """Returns True/False for a labeled outcome, or None if the candidate
-    didn't even compile/pass tests (excluded from the dataset, not a 0)."""
-    build = compile_tool.compile_and_register(source, lang, compiler, flags)
-    if not build.ok:
-        return None
-    tests = verify_tool.run_tests(build.candidate_id, program_id)
-    if not tests.all_pass:
-        return None
-    compare = bench_tool.compare(build.candidate_id, program_id, n=10)
-    return compare.speedup >= LABEL_THRESHOLD and compare.p_value < 0.05
+def label_columns() -> list[str]:
+    return [f"y_{s}" for s in STRATEGY_COLUMNS]
 
 
-def build(program_ids: list[str] | None = None) -> list[dict]:
-    ids = program_ids or registry.list_programs()
-    rows: list[dict] = []
+def sweep_program(pid: str, n: int | None = None) -> dict:
+    """Compile + verify every variant of one program, then benchmark all
+    the valid ones against the baseline in one interleaved session."""
+    program = registry.load(pid)
+    meta = program["meta"]
+    lang = meta["language"]
 
-    for pid in ids:
+    variants: list[dict] = []
+    for compiler, name, flags in FLAG_VARIANTS:
+        variants.append({"name": name, "strategy": "flags", "compiler": compiler,
+                         "flags": flags, "source": program["source"]})
+    for strategy, source in TEMPLATES.get(pid, {}).items():
+        variants.append({"name": f"template_{strategy}", "strategy": strategy, "compiler": "gcc",
+                         "flags": ["-O2"], "source": source})
+
+    valid = []
+    for v in variants:
+        build = compile_tool.compile_and_register(v["source"], lang, v["compiler"], v["flags"])
+        if not build.ok:
+            v["status"] = "compile_error"
+            v["detail"] = build.stderr[-300:]
+            continue
+        tests = verify_tool.run_tests(build.candidate_id, pid, sanitize=v["strategy"] != "flags")
+        if not tests.all_pass:
+            v["status"] = "failed_tests"
+            v["detail"] = str(tests.failed_cases)
+            continue
+        v["candidate_id"] = build.candidate_id
+        valid.append(v)
+
+    if valid:
+        results = bench_tool.compare_many([v["candidate_id"] for v in valid], pid, n=n)
+        for v, r in zip(valid, results):
+            v["status"] = "measured"
+            v["speedup"] = round(r.speedup, 4)
+            v["cpu_speedup"] = round(r.cpu_speedup, 4)
+            v["p_value"] = r.p_value
+            v["positive"] = bool(r.speedup >= LABEL_THRESHOLD and r.p_value < 0.05)
+
+    for v in variants:
+        v.pop("source", None)
+        v.pop("candidate_id", None)
+    return {"program_id": pid, "variants": variants}
+
+
+def rows_from_sweep(details: list[dict]) -> list[dict]:
+    rows = []
+    for d in details:
+        pid = d["program_id"]
         program = registry.load(pid)
-        meta = program["meta"]
-        lang = meta["language"]
-        analysis = analyze_tool.analyze(program["source"], lang)
-        features = analysis["features"]
-
-        labels = {name: 0 for name in STRATEGY_COLUMNS}
-        any_label = False
-
-        for compiler, _, flags in FLAG_VARIANTS:
-            result = _evaluate(pid, lang, program["source"], compiler, flags)
-            if result:
-                labels["flags"] = 1
-                any_label = True
-
-        for strategy, source in TEMPLATES.get(pid, {}).items():
-            result = _evaluate(pid, lang, source, "gcc", ["-O2"])
-            if result:
-                labels[strategy] = 1
-                any_label = True
-            elif result is False:
-                any_label = True  # a confirmed negative is still a real row
-
-        row = {"program_id": pid, **dict(zip(FEATURE_COLUMNS, to_vector(features))), **labels}
+        features = analyze_tool.analyze(program["source"], program["meta"]["language"])["features"]
+        row = {"program_id": pid, "category": program["meta"].get("category", ""),
+               **dict(zip(FEATURE_COLUMNS, to_vector(features)))}
+        for strategy in STRATEGY_COLUMNS:
+            measured = [v for v in d["variants"] if v["strategy"] == strategy and v.get("status") == "measured"]
+            if measured:
+                row[f"y_{strategy}"] = int(any(v["positive"] for v in measured))
+                row[f"s_{strategy}"] = max(v["speedup"] for v in measured)
+                row[f"src_{strategy}"] = "sweep"
+            else:
+                row[f"y_{strategy}"] = ""
         rows.append(row)
-        print(f"{pid:24s} " + " ".join(name for name, v in labels.items() if v))
-
     return rows
+
+
+def merge_experience(rows: list[dict], path: pathlib.Path = EXPERIENCE_PATH) -> int:
+    """Fill sweep-untested labels from single-strategy agent attempts:
+    accepted -> 1, measured but not significant -> 0. Correctness
+    failures say nothing about the strategy (only about that rewrite),
+    so they're ignored. Returns how many labels were filled."""
+    if not path.exists():
+        return 0
+    by_pid = {r["program_id"]: r for r in rows}
+    evidence: dict[tuple[str, str], list[int]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        rec = json.loads(line)
+        if len(rec.get("strategies", [])) != 1:
+            continue
+        if rec.get("accepted"):
+            label = 1
+        elif rec.get("reason") == "no_significant_gain":
+            label = 0
+        else:
+            continue
+        evidence.setdefault((rec["program_id"], rec["strategies"][0]), []).append(label)
+
+    filled = 0
+    for (pid, strategy), labels in evidence.items():
+        row = by_pid.get(pid)
+        if row is None or strategy not in STRATEGY_COLUMNS or row.get(f"y_{strategy}") != "":
+            continue
+        row[f"y_{strategy}"] = int(any(labels))
+        row[f"src_{strategy}"] = "agent"
+        filled += 1
+    return filled
 
 
 def write_csv(rows: list[dict], path: pathlib.Path = OUT_PATH) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    fieldnames = ["program_id", *FEATURE_COLUMNS, *STRATEGY_COLUMNS]
+    extra = [f"{p}_{s}" for s in STRATEGY_COLUMNS for p in ("s", "src")]
+    fieldnames = ["program_id", "category", *FEATURE_COLUMNS, *label_columns(), *extra]
     with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 

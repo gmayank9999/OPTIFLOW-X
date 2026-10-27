@@ -1,75 +1,89 @@
 """Strategy ranking prior for the Strategist.
 
-Once train_xgb.py has produced a model from the sweep dataset
-(Section 11.3), this loads it and ranks strategies by predicted success
-probability. Until that model exists, it falls back to a static-feature
-heuristic so the Strategist still has a prior to combine with RAG and its
-own reasoning -- this is what the "no-XGB" ablation effectively runs
-permanently.
+A hybrid: for each strategy, use the trained XGBoost classifier *only if*
+train_xgb.py found it beats the static heuristic on held-out programs;
+otherwise use the heuristic. Until a model bundle exists, every strategy
+uses the heuristic. Either way the output is a ranking prior for the
+Strategist's prompt, never a decision.
 """
 
 from __future__ import annotations
 
 import pathlib
 
-from optiflow.ml.features import STRATEGY_COLUMNS, to_vector
+from optiflow.ml.features import FEATURE_COLUMNS, STRATEGY_COLUMNS, to_vector
 
 MODEL_PATH = pathlib.Path("optiflow/ml/models/xgb_strategy_model.joblib")
 
-_model = None
-_model_checked = False
+_bundle = None
+_bundle_checked = False
 
 
-def _load_model():
-    global _model, _model_checked
-    if _model_checked:
-        return _model
-    _model_checked = True
+def _load_bundle():
+    global _bundle, _bundle_checked
+    if _bundle_checked:
+        return _bundle
+    _bundle_checked = True
     if MODEL_PATH.exists():
         import joblib
 
-        _model = joblib.load(MODEL_PATH)
-    return _model
+        loaded = joblib.load(MODEL_PATH)
+        # Only the v2 per-strategy bundle is understood; an older
+        # multi-output model (trained on mislabeled data) is ignored.
+        if isinstance(loaded, dict) and loaded.get("version") == 2 and loaded.get("features") == FEATURE_COLUMNS:
+            _bundle = loaded
+    return _bundle
+
+
+def reload() -> None:
+    global _bundle, _bundle_checked
+    _bundle, _bundle_checked = None, False
+
+
+def backends() -> dict[str, str]:
+    bundle = _load_bundle()
+    return {s: (bundle["backend"].get(s, "heuristic") if bundle else "heuristic") for s in STRATEGY_COLUMNS}
 
 
 def rank(features: dict[str, float], top_k: int = 5) -> list[tuple[str, float]]:
-    model = _load_model()
-    if model is not None:
-        scores = _predict_with_model(model, features)
-    else:
-        scores = _heuristic_scores(features)
+    scores = heuristic_scores(features)
+    bundle = _load_bundle()
+    if bundle:
+        vector = [to_vector(features)]
+        for strategy, model in bundle["models"].items():
+            if bundle["backend"].get(strategy) == "model":
+                scores[strategy] = float(model.predict_proba(vector)[0, 1])
     ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
-    return ranked[:top_k]
+    return [(name, round(score, 3)) for name, score in ranked[:top_k]]
 
 
-def _predict_with_model(model, features: dict[str, float]) -> dict[str, float]:
-    vector = [to_vector(features)]
-    probs = model.predict_proba(vector)
-    scores = {}
-    for name, estimator_probs in zip(STRATEGY_COLUMNS, probs):
-        # MultiOutputClassifier: one [P(0), P(1)] row per label per sample.
-        scores[name] = float(estimator_probs[0][1])
-    return scores
+def heuristic_scores(features: dict[str, float]) -> dict[str, float]:
+    """Static-feature rules of thumb from the technique cards. Not
+    calibrated probabilities -- only the order matters."""
+    f = lambda k: float(features.get(k, 0) or 0)  # noqa: E731
+    scores = {name: 0.2 for name in STRATEGY_COLUMNS}
+    scores["flags"] = 0.5
+    scores["algorithmic"] = 0.25
 
-
-def _heuristic_scores(features: dict[str, float]) -> dict[str, float]:
-    scores = {name: 0.3 for name in STRATEGY_COLUMNS}
-    scores["flags"] = 0.6
-
-    if features.get("stride_mismatch", 0) >= 1:
+    if f("stride_mismatch") >= 1:
         scores["interchange"] = 0.75
         scores["tiling"] = 0.65
-    if features.get("max_loop_depth", 0) >= 2:
-        scores["vectorize"] = 0.55
-        scores["unroll"] = 0.4
-    if features.get("has_recursion", 0) >= 1:
-        scores["memoize"] = 0.85
-    if features.get("has_struct_array", 0) >= 1:
+    if f("max_loop_depth") >= 2:
+        scores["vectorize"] = max(scores["vectorize"], 0.45 if f("uses_float") else 0.3)
+        scores["unroll"] = 0.3
+    if f("max_loop_depth") >= 3 and f("uses_float"):
+        scores["tiling"] = max(scores["tiling"], 0.45)
+    if f("has_recursion") >= 1:
+        scores["memoize"] = 0.7
+        scores["algorithmic"] = max(scores["algorithmic"], 0.5)
+    if f("max_loop_depth") >= 2 and not f("uses_float") and not f("stride_mismatch"):
+        # quadratic integer loops: sorts, scans, pairwise counts
+        scores["algorithmic"] = max(scores["algorithmic"], 0.55)
+    if f("has_struct_array") >= 1 or f("pointer_chasing") >= 1:
         scores["soa"] = 0.6
-    if features.get("strlen_in_loop_cond", 0) >= 1:
+    if f("strlen_in_loop_cond") >= 1 or f("n_mallocs_in_loop") >= 1:
         scores["hoist"] = 0.6
-    if features.get("n_loops", 0) >= 2:
-        scores["fusion"] = 0.35
-        scores["fission"] = 0.3
-
+    if f("n_loops") >= 3:
+        scores["fusion"] = 0.3
+        scores["fission"] = 0.25
     return scores

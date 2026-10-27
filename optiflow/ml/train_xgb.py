@@ -1,10 +1,22 @@
-"""Trains the multi-label strategy classifier from the sweep dataset.
+"""Trains the per-strategy success classifiers and decides, honestly, where
+they're worth using.
 
-GroupKFold by program_id so a program never appears in both train and
-test -- otherwise the model could "learn" a specific program's row
-instead of generalizing from its features. Reports per-strategy
-ROC-AUC and top-1/top-3 hit rate against a naive "always suggest
-flags + interchange" baseline, per Section 11.3.
+For each strategy:
+  - train only on programs where that strategy was actually tested
+    (missing labels are not negatives -- see build_dataset.py),
+  - evaluate with leave-one-program-out CV (each row is one program, so
+    this is GroupKFold with one group per fold: a program is never in
+    both train and test),
+  - compare the model's out-of-fold ROC-AUC with the static heuristic's
+    AUC on the *same* rows,
+  - use the model at prediction time only if it beats the heuristic and
+    clears AUC 0.6; otherwise the predictor falls back to the heuristic
+    for that strategy.
+
+Strategies with too few labels (< 6 rows or < 2 of either class) never
+get a model. The report says which backend each strategy ended up with
+and why, plus top-1/top-3 hit rates for the hybrid ranking, the
+heuristic alone, and a naive "flags, interchange, tiling" baseline.
 """
 
 from __future__ import annotations
@@ -16,112 +28,142 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import GroupKFold
-from sklearn.multioutput import MultiOutputClassifier
 from xgboost import XGBClassifier
 
 from optiflow.ml.features import FEATURE_COLUMNS, STRATEGY_COLUMNS
+from optiflow.ml.predictor import heuristic_scores
 
 DATASET_PATH = pathlib.Path("results/ml_dataset.csv")
 MODEL_PATH = pathlib.Path("optiflow/ml/models/xgb_strategy_model.joblib")
 REPORT_PATH = pathlib.Path("results/xgb_report.json")
-NAIVE_BASELINE = ["flags", "interchange"]
+NAIVE_BASELINE = ["flags", "interchange", "tiling"]
+MIN_ROWS, MIN_PER_CLASS, MIN_AUC = 6, 2, 0.6
 
 
 def load_dataset() -> pd.DataFrame:
     return pd.read_csv(DATASET_PATH)
 
 
+def _model() -> XGBClassifier:
+    # Deliberately small: tens of rows per strategy at most.
+    return XGBClassifier(n_estimators=60, max_depth=2, learning_rate=0.15, min_child_weight=1,
+                         subsample=1.0, eval_metric="logloss", verbosity=0)
+
+
 def top_k_hit_rate(y_true: np.ndarray, y_score: np.ndarray, k: int) -> float:
     """Fraction of rows where at least one true-positive label is in the
-    model's top-k predicted strategies. Rows with no positive label at
-    all are skipped -- there's nothing for "hit" to mean there."""
+    top-k predicted strategies. NaN labels are untested and never count as
+    hits; rows with no positive label at all are skipped."""
     hits, total = 0, 0
     for true_row, score_row in zip(y_true, y_score):
         positive = np.where(true_row == 1)[0]
         if len(positive) == 0:
             continue
         total += 1
-        top_k = np.argsort(score_row)[::-1][:k]
+        top_k = np.argsort(-np.asarray(score_row), kind="stable")[:k]
         if any(p in top_k for p in positive):
             hits += 1
     return hits / total if total else float("nan")
 
 
 def naive_baseline_hit_rate(y_true: np.ndarray, k: int) -> float:
-    naive_idx = [STRATEGY_COLUMNS.index(name) for name in NAIVE_BASELINE if name in STRATEGY_COLUMNS]
-    hits, total = 0, 0
-    for true_row in y_true:
-        positive = np.where(true_row == 1)[0]
-        if len(positive) == 0:
-            continue
-        total += 1
-        if any(p in naive_idx[:k] for p in positive):
-            hits += 1
-    return hits / total if total else float("nan")
+    naive_idx = [STRATEGY_COLUMNS.index(name) for name in NAIVE_BASELINE]
+    scores = np.zeros((len(y_true), len(STRATEGY_COLUMNS)))
+    for rank, idx in enumerate(naive_idx):
+        scores[:, idx] = len(naive_idx) - rank
+    return top_k_hit_rate(y_true, scores, k)
+
+
+def _safe_auc(y: np.ndarray, s: np.ndarray) -> float | None:
+    if len(set(y.tolist())) < 2:
+        return None
+    try:
+        return float(roc_auc_score(y, s))
+    except ValueError:
+        return None
 
 
 def train() -> dict:
     df = load_dataset()
-    X = df[FEATURE_COLUMNS]
-    Y = df[STRATEGY_COLUMNS]
-    groups = df["program_id"]
+    X_all = df[FEATURE_COLUMNS].astype(float).values
+    heur = np.array([[heuristic_scores(dict(zip(FEATURE_COLUMNS, x)))[s] for s in STRATEGY_COLUMNS] for x in X_all])
 
-    # Strategies with fewer than 2 positive examples can't be split across
-    # folds meaningfully; XGBoost still trains but AUC is undefined for them.
-    label_counts = Y.sum()
+    oof = heur.copy()  # out-of-fold hybrid scores; heuristic unless a model wins
+    models, backend, per_strategy = {}, {}, {}
+    for j, strategy in enumerate(STRATEGY_COLUMNS):
+        y_col = pd.to_numeric(df[f"y_{strategy}"], errors="coerce")
+        mask = y_col.notna().values
+        y = y_col[mask].astype(int).values
+        X = X_all[mask]
+        n, pos = int(mask.sum()), int(y.sum()) if mask.any() else 0
+        info = {"n_labeled": n, "n_positive": pos, "model_auc": None,
+                "heuristic_auc": _safe_auc(y, heur[mask, j]) if n else None}
 
-    all_true, all_score = [], []
-    n_splits = min(5, groups.nunique())
-    for train_idx, test_idx in GroupKFold(n_splits=n_splits).split(X, Y, groups):
-        model = MultiOutputClassifier(
-            XGBClassifier(n_estimators=200, max_depth=3, learning_rate=0.1, subsample=0.8, eval_metric="logloss")
-        )
-        model.fit(X.iloc[train_idx], Y.iloc[train_idx])
-        proba = model.predict_proba(X.iloc[test_idx])
-        # one [P(0), P(1)] array per label; stack into (n_samples, n_labels)
-        scores = np.column_stack([p[:, 1] if p.shape[1] > 1 else np.zeros(len(p)) for p in proba])
-        all_true.append(Y.iloc[test_idx].values)
-        all_score.append(scores)
-
-    y_true = np.vstack(all_true)
-    y_score = np.vstack(all_score)
-
-    per_strategy_auc = {}
-    for i, name in enumerate(STRATEGY_COLUMNS):
-        if label_counts[name] < 2 or y_true[:, i].sum() == 0:
-            per_strategy_auc[name] = None
+        if n < MIN_ROWS or pos < MIN_PER_CLASS or n - pos < MIN_PER_CLASS:
+            backend[strategy] = "heuristic"
+            info["backend"] = "heuristic"
+            info["why"] = f"too few labels ({n} rows, {pos} positive)"
+            per_strategy[strategy] = info
             continue
-        try:
-            per_strategy_auc[name] = float(roc_auc_score(y_true[:, i], y_score[:, i]))
-        except ValueError:
-            per_strategy_auc[name] = None
 
+        preds = np.zeros(n)
+        for i in range(n):
+            train_idx = np.arange(n) != i
+            if len(set(y[train_idx].tolist())) < 2:
+                preds[i] = float(y[train_idx].mean())
+                continue
+            m = _model().fit(X[train_idx], y[train_idx])
+            preds[i] = m.predict_proba(X[i:i + 1])[0, 1]
+        info["model_auc"] = _safe_auc(y, preds)
+
+        final = _model().fit(X, y)
+        importances = dict(zip(FEATURE_COLUMNS, map(float, final.feature_importances_)))
+        info["feature_importance"] = dict(sorted(importances.items(), key=lambda kv: -kv[1])[:6])
+
+        model_auc, heur_auc = info["model_auc"] or 0.0, info["heuristic_auc"] or 0.0
+        if model_auc >= MIN_AUC and model_auc > heur_auc:
+            backend[strategy] = "model"
+            models[strategy] = final
+            oof[np.where(mask)[0], j] = preds
+            info["why"] = f"model AUC {model_auc:.2f} > heuristic {heur_auc:.2f}"
+        else:
+            backend[strategy] = "heuristic"
+            info["why"] = f"model AUC {model_auc:.2f} did not beat heuristic {heur_auc:.2f} / floor {MIN_AUC}"
+        info["backend"] = backend[strategy]
+        per_strategy[strategy] = info
+
+    y_true = np.array([[pd.to_numeric(r, errors="coerce") for r in df[f"y_{s}"]] for s in STRATEGY_COLUMNS]).T
     report = {
-        "n_rows": len(df),
-        "n_programs": int(groups.nunique()),
-        "label_counts": {k: int(v) for k, v in label_counts.items()},
-        "per_strategy_auc": per_strategy_auc,
-        "top1_hit_rate": top_k_hit_rate(y_true, y_score, k=1),
-        "top3_hit_rate": top_k_hit_rate(y_true, y_score, k=3),
-        "naive_baseline_top1_hit_rate": naive_baseline_hit_rate(y_true, k=1),
-        "naive_baseline_top3_hit_rate": naive_baseline_hit_rate(y_true, k=3),
+        "n_programs": int(len(df)),
+        "n_labels": int(np.sum(~np.isnan(y_true))),
+        "n_positive_labels": int(np.nansum(y_true)),
+        "label_sources": {
+            "sweep": int(sum((df.get(f"src_{s}") == "sweep").sum() for s in STRATEGY_COLUMNS if f"src_{s}" in df)),
+            "agent": int(sum((df.get(f"src_{s}") == "agent").sum() for s in STRATEGY_COLUMNS if f"src_{s}" in df)),
+        },
+        "per_strategy": per_strategy,
+        "backend": backend,
+        "ranking": {
+            "programs_with_a_positive": int(np.sum(np.nansum(y_true, axis=1) > 0)),
+            "hybrid_top1": top_k_hit_rate(y_true, oof, 1),
+            "hybrid_top3": top_k_hit_rate(y_true, oof, 3),
+            "heuristic_top1": top_k_hit_rate(y_true, heur, 1),
+            "heuristic_top3": top_k_hit_rate(y_true, heur, 3),
+            "naive_top1": naive_baseline_hit_rate(y_true, 1),
+            "naive_top3": naive_baseline_hit_rate(y_true, 3),
+        },
+        "notes": (
+            "Out-of-fold (leave-one-program-out) scores. The hybrid ranking uses a "
+            "strategy's model only where it beat the heuristic on held-out programs."
+        ),
     }
 
-    # Final model trained on everything, for the predictor to load.
-    final_model = MultiOutputClassifier(
-        XGBClassifier(n_estimators=200, max_depth=3, learning_rate=0.1, subsample=0.8, eval_metric="logloss")
-    )
-    final_model.fit(X, Y)
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(final_model, MODEL_PATH)
-
+    joblib.dump({"version": 2, "features": FEATURE_COLUMNS, "backend": backend, "models": models}, MODEL_PATH)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(json.dumps(report, indent=2))
-
     return report
 
 
 if __name__ == "__main__":
-    report = train()
-    print(json.dumps(report, indent=2))
+    print(json.dumps(train(), indent=2))

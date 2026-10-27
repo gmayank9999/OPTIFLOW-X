@@ -6,6 +6,8 @@ and predictor.py can never silently disagree on what column N means.
 
 from __future__ import annotations
 
+from optiflow.core.schemas import STRATEGY_NAMES
+
 FEATURE_COLUMNS = [
     "max_loop_depth",
     "n_loops",
@@ -17,21 +19,11 @@ FEATURE_COLUMNS = [
     "uses_float",
     "has_struct_array",
     "strlen_in_loop_cond",
+    "pointer_chasing",
     "loc",
 ]
 
-STRATEGY_COLUMNS = [
-    "flags",
-    "interchange",
-    "tiling",
-    "vectorize",
-    "unroll",
-    "fusion",
-    "fission",
-    "soa",
-    "hoist",
-    "memoize",
-]
+STRATEGY_COLUMNS = list(STRATEGY_NAMES)
 
 
 def to_vector(features: dict[str, float]) -> list[float]:
