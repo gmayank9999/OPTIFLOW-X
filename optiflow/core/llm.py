@@ -8,9 +8,22 @@ USD cap real numbers instead of placeholders.
 
 from __future__ import annotations
 
+import os
+
 from crewai import LLM, Agent, Task
 
 from optiflow.core.config import model_for, price
+
+# CrewAI's global event listener prints a boxed panel for every task and
+# LLM call regardless of Agent(verbose=False), which buries our own step
+# output. Off unless OPTIFLOW_CREWAI_CONSOLE=1.
+if os.getenv("OPTIFLOW_CREWAI_CONSOLE") != "1":
+    try:
+        from crewai.events.event_listener import event_listener as _crewai_listener
+
+        _crewai_listener.formatter.verbose = False
+    except Exception:  # noqa: BLE001 - cosmetic; never block a run over it
+        pass
 from optiflow.core.schemas import TokenUsage
 
 
