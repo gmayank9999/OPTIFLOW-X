@@ -1,32 +1,130 @@
 {
-  "n_rows": 50,
   "n_programs": 50,
-  "label_counts": {
-    "flags": 22,
-    "interchange": 3,
-    "tiling": 2,
-    "vectorize": 1,
-    "unroll": 0,
-    "fusion": 0,
-    "fission": 0,
-    "soa": 2,
-    "hoist": 3,
-    "memoize": 2
+  "n_labels": 77,
+  "n_positive_labels": 52,
+  "label_sources": {
+    "sweep": 77,
+    "agent": 0
   },
-  "per_strategy_auc": {
-    "flags": 0.3311688311688311,
-    "interchange": 0.5,
-    "tiling": 0.1875,
-    "vectorize": null,
-    "unroll": null,
-    "fusion": null,
-    "fission": null,
-    "soa": 0.1875,
-    "hoist": 0.31560283687943264,
-    "memoize": 0.1875
+  "per_strategy": {
+    "flags": {
+      "n_labeled": 50,
+      "n_positive": 27,
+      "model_auc": 0.5152979066022544,
+      "heuristic_auc": 0.5,
+      "feature_importance": {
+        "stride_mismatch": 0.21110586822032928,
+        "n_array_accesses": 0.17551659047603607,
+        "loc": 0.1529846340417862,
+        "uses_float": 0.1332516372203827,
+        "n_nested_loops": 0.1264483630657196,
+        "max_loop_depth": 0.11024003475904465
+      },
+      "why": "model AUC 0.52 did not beat heuristic 0.50 / floor 0.6",
+      "backend": "heuristic"
+    },
+    "interchange": {
+      "n_labeled": 4,
+      "n_positive": 4,
+      "model_auc": null,
+      "heuristic_auc": null,
+      "backend": "heuristic",
+      "why": "too few labels (4 rows, 4 positive)"
+    },
+    "tiling": {
+      "n_labeled": 4,
+      "n_positive": 3,
+      "model_auc": null,
+      "heuristic_auc": 0.8333333333333333,
+      "backend": "heuristic",
+      "why": "too few labels (4 rows, 3 positive)"
+    },
+    "vectorize": {
+      "n_labeled": 1,
+      "n_positive": 1,
+      "model_auc": null,
+      "heuristic_auc": null,
+      "backend": "heuristic",
+      "why": "too few labels (1 rows, 1 positive)"
+    },
+    "unroll": {
+      "n_labeled": 0,
+      "n_positive": 0,
+      "model_auc": null,
+      "heuristic_auc": null,
+      "backend": "heuristic",
+      "why": "too few labels (0 rows, 0 positive)"
+    },
+    "fusion": {
+      "n_labeled": 0,
+      "n_positive": 0,
+      "model_auc": null,
+      "heuristic_auc": null,
+      "backend": "heuristic",
+      "why": "too few labels (0 rows, 0 positive)"
+    },
+    "fission": {
+      "n_labeled": 0,
+      "n_positive": 0,
+      "model_auc": null,
+      "heuristic_auc": null,
+      "backend": "heuristic",
+      "why": "too few labels (0 rows, 0 positive)"
+    },
+    "soa": {
+      "n_labeled": 3,
+      "n_positive": 3,
+      "model_auc": null,
+      "heuristic_auc": null,
+      "backend": "heuristic",
+      "why": "too few labels (3 rows, 3 positive)"
+    },
+    "hoist": {
+      "n_labeled": 4,
+      "n_positive": 4,
+      "model_auc": null,
+      "heuristic_auc": null,
+      "backend": "heuristic",
+      "why": "too few labels (4 rows, 4 positive)"
+    },
+    "memoize": {
+      "n_labeled": 2,
+      "n_positive": 2,
+      "model_auc": null,
+      "heuristic_auc": null,
+      "backend": "heuristic",
+      "why": "too few labels (2 rows, 2 positive)"
+    },
+    "algorithmic": {
+      "n_labeled": 9,
+      "n_positive": 8,
+      "model_auc": null,
+      "heuristic_auc": 0.4375,
+      "backend": "heuristic",
+      "why": "too few labels (9 rows, 8 positive)"
+    }
   },
-  "top1_hit_rate": 0.4482758620689655,
-  "top3_hit_rate": 0.5862068965517241,
-  "naive_baseline_top1_hit_rate": 0.7586206896551724,
-  "naive_baseline_top3_hit_rate": 0.8275862068965517
+  "backend": {
+    "flags": "heuristic",
+    "interchange": "heuristic",
+    "tiling": "heuristic",
+    "vectorize": "heuristic",
+    "unroll": "heuristic",
+    "fusion": "heuristic",
+    "fission": "heuristic",
+    "soa": "heuristic",
+    "hoist": "heuristic",
+    "memoize": "heuristic",
+    "algorithmic": "heuristic"
+  },
+  "ranking": {
+    "programs_with_a_positive": 38,
+    "hybrid_top1": 0.631578947368421,
+    "hybrid_top3": 0.9736842105263158,
+    "heuristic_top1": 0.631578947368421,
+    "heuristic_top3": 0.9736842105263158,
+    "naive_top1": 0.7105263157894737,
+    "naive_top3": 0.8421052631578947
+  },
+  "notes": "Out-of-fold (leave-one-program-out) scores. The hybrid ranking uses a strategy's model only where it beat the heuristic on held-out programs."
 }
