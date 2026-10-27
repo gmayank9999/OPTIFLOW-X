@@ -82,7 +82,7 @@ Machine: Intel i7-1185G7 laptop, Windows 11, Docker Desktop on WSL2
 
 - E1 on all 50 programs, E2-E5, and repeats have not been run. The
   runner is resumable, so this is a matter of machine time and API budget.
-- One E1 attempt and two runs were lost to a DNS outage before LLM calls
+- Two E1 runs were lost to a DNS outage before LLM calls
   had retry/backoff; they were re-run.
 - Timing on a laptop under WSL2 is noisier than the plan's target (CV < 3%
   for all programs). A quiet Linux machine with pinned cores would do
