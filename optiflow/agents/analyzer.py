@@ -1,65 +1,88 @@
 """Program Analyzer agent.
 
-Reads a benchmark program through the MCP tools (get_program,
-static_analysis) and asks the LLM for a short structural summary. The
-loops/functions/features themselves come straight from tree-sitter, not
-from the model, so a bad summary can never corrupt the data the rest of
-the pipeline reasons over.
+Fetches the program and its static analysis through the MCP tools
+(get_program, static_analysis), then asks the LLM for a short structural
+summary. The loops/functions/features themselves come straight from
+tree-sitter, not from the model, so a bad summary can never corrupt the
+data the rest of the pipeline reasons over.
 """
 
 from __future__ import annotations
 
-from crewai import Agent, Task
+import json
 
-from optiflow.core.llm import llm_for
-from optiflow.core.schemas import ProgramSummary
+from crewai import Agent
 
-TOOL_NAMES = {"get_program", "static_analysis"}
+from optiflow.agents.common import make_agent as _make_agent
+from optiflow.agents.common import numbered
+from optiflow.agents.mcp_tools import ToolClient
+from optiflow.core import llm
+from optiflow.core.schemas import ProgramSummary, TokenUsage
 
 
-def make_agent(tools) -> Agent:
-    return Agent(
-        role="Program Analyzer",
+def make_agent(assignment: str | None = None) -> Agent:
+    return _make_agent(
+        "analyzer",
+        title="Program Analyzer",
         goal="Extract an accurate structural summary of the target C/C++ program.",
         backstory=(
             "You read unfamiliar C/C++ source quickly and describe its structure "
             "precisely: what the hot loops do, what they touch in memory, and "
             "which function they live in."
         ),
-        tools=tools,
-        llm=llm_for("analyzer", temperature=0.1),
-        allow_delegation=False,
-        max_iter=3,
-        verbose=True,
+        assignment=assignment,
+        temperature=0.1,
     )
 
 
-def run(agent: Agent, program_id: str) -> ProgramSummary:
-    task = Task(
-        description=(
-            f"Call get_program('{program_id}') then static_analysis(source, lang) "
-            "on its source. Reply with a 3-5 line plain-text summary of the "
-            "program's structure: what it computes, which loops are hottest by "
-            "nesting depth, and any obviously cache-unfriendly access pattern."
-        ),
-        expected_output="A short structural summary, 3-5 lines, plain text.",
-        agent=agent,
-    )
-    crew_output = task.execute_sync(agent)
-    summary_text = str(crew_output)
+def run(agent: Agent | None, tools: ToolClient, program_id: str) -> tuple[ProgramSummary, TokenUsage]:
+    program = tools.call("get_program", program_id=program_id)
+    lang = program["meta"]["language"]
+    analysis = tools.call("static_analysis", source=program["source"], lang=lang)
 
-    from optiflow.tools import analyze as analyze_tool
-    from optiflow.tools import registry
-
-    program = registry.load(program_id)
-    analysis = analyze_tool.analyze(program["source"], program["meta"]["language"])
+    usage = TokenUsage()
+    if agent is None:
+        summary_text = deterministic_summary(analysis)
+    else:
+        loops = [
+            {k: loop[k] for k in ("function", "line", "end_line", "depth", "iter_vars", "array_accesses")}
+            for loop in analysis["loops"]
+        ]
+        summary_text, usage = llm.call(
+            agent,
+            description=(
+                f"PROGRAM {program_id} ({lang}):\n{numbered(program['source'])}\n\n"
+                f"LOOPS (from tree-sitter): {json.dumps(loops)}\n"
+                f"STATIC FEATURES: {json.dumps(analysis['features'])}\n\n"
+                "Write a 3-5 line plain-text summary of this program's structure: what "
+                "it computes, which loop nest is likely hottest (cite line numbers), and "
+                "any cache-unfriendly access pattern, redundant work, or algorithmic "
+                "inefficiency. No code, no markdown."
+            ),
+            expected_output="A short structural summary, 3-5 lines, plain text.",
+        )
 
     return ProgramSummary(
         program_id=program_id,
-        language=program["meta"]["language"],
+        language=lang,
         source=program["source"],
         functions=analysis["functions"],
         loops=analysis["loops"],
         features=analysis["features"],
-        summary_text=summary_text,
-    )
+        summary_text=summary_text.strip(),
+    ), usage
+
+
+def deterministic_summary(analysis: dict) -> str:
+    f = analysis["features"]
+    notes = [f"{int(f['n_loops'])} loops, max nesting depth {int(f['max_loop_depth'])}"]
+    for key, text in (
+        ("stride_mismatch", "an innermost loop walks a non-contiguous dimension"),
+        ("has_recursion", "recursive function(s)"),
+        ("has_struct_array", "array-of-structs accessed field by field"),
+        ("strlen_in_loop_cond", "strlen() evaluated in a loop condition"),
+        ("pointer_chasing", "linked-structure traversal"),
+    ):
+        if f.get(key):
+            notes.append(text)
+    return "; ".join(notes) + "."

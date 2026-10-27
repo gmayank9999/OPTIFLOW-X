@@ -1,0 +1,7 @@
+# LLM-free reference points, run on all 50 programs. No API key needed.
+# flags_only answers "is the system better than just using -O3?"
+name: e0_baselines
+programs: all
+runs:
+  - {variant: flags_only, max_attempts: 1}
+  - {variant: rule_only, max_attempts: 5}

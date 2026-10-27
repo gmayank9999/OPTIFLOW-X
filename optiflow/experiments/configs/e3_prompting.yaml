@@ -1,0 +1,9 @@
+# E3: Strategist prompting styles. Sequential + blackboard.
+name: e3_prompting
+programs: subset10
+repeats: 1   # raise to 3 to average over LLM randomness
+defaults: {architecture: sequential, messaging: blackboard, variant: full, max_attempts: 5}
+runs:
+  - {prompt_style: structured}
+  - {prompt_style: react}
+  - {prompt_style: reflection}

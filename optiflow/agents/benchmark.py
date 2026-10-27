@@ -1,17 +1,20 @@
 """Benchmark agent.
 
-Times the candidate and compares it to the baseline. The LLM's role here
-is limited to phrasing the result for the trace/dashboard; the numbers
-the Critic acts on come straight from bench.py.
+Times the candidate against the baseline through the compare_to_baseline
+MCP tool: one interleaved session (baseline and candidate alternating in
+the same container), so each candidate is measured exactly once and the
+numbers the Critic acts on are the numbers that get reported. No LLM is
+involved -- there is nothing for a model to decide here.
 """
 
 from __future__ import annotations
 
-from optiflow.core.schemas import BenchResult, CompareResult
-from optiflow.tools import bench as bench_tool
+from optiflow.agents.mcp_tools import ToolClient
+from optiflow.core.schemas import CompareResult
 
 
-def run(candidate_id: str, program_id: str, n: int = 10) -> tuple[BenchResult, CompareResult]:
-    result = bench_tool.run(candidate_id, program_id, n=n)
-    comparison = bench_tool.compare(candidate_id, program_id, n=n)
-    return result, comparison
+def run(tools: ToolClient, candidate_id: str, program_id: str, n: int | None = None) -> CompareResult:
+    kwargs = {"candidate_id": candidate_id, "program_id": program_id}
+    if n is not None:
+        kwargs["n"] = n
+    return CompareResult(**tools.call("compare_to_baseline", **kwargs))

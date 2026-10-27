@@ -24,13 +24,17 @@ dashboard/out/
 dashboard/.env.local
 npm-debug.log*
 
-# Results and generated artifacts
+# Results and generated artifacts.
+# Versioned on purpose (small, and they're the evidence behind the report):
+# results/runs.csv, stability.json, machine.json, ml_dataset.csv,
+# ml_sweep_detail.json, xgb_report.json, analysis.json, experience.jsonl,
+# profiles/, figures/. Bulky per-run detail stays local:
 results/traces/*.jsonl
-results/runs.csv
-results/figures/*
-!results/figures/.gitkeep
 results/runs/
+results/judge_human_sample.csv
 kb_store/
+dashboard/tsconfig.tsbuildinfo
+.pytest_tmp/
 optiflow/ml/models/
 *.gmon
 gmon.out

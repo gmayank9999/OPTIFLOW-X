@@ -21,7 +21,10 @@ StrategyName = Literal[
     "soa",
     "hoist",
     "memoize",
+    "algorithmic",
 ]
+
+STRATEGY_NAMES: tuple[str, ...] = StrategyName.__args__  # type: ignore[attr-defined]
 
 
 class Hotspot(BaseModel):
@@ -51,6 +54,7 @@ class ProfileReport(BaseModel):
     llc_miss_rate: Optional[float] = None
     branch_miss_rate: Optional[float] = None
     hotspots: list[Hotspot] = Field(default_factory=list)
+    counters_source: Literal["perf", "cachegrind", "none"] = "none"
     bottleneck_text: str = ""
 
 
@@ -58,8 +62,8 @@ class Strategy(BaseModel):
     name: StrategyName
     target: Optional[str] = None
     params: dict = Field(default_factory=dict)
-    rationale: str
-    confidence: float
+    rationale: str = ""
+    confidence: float = 0.5
 
 
 class OptimizationPlan(BaseModel):
@@ -73,7 +77,9 @@ class Candidate(BaseModel):
     attempt: int
     source: str
     flags: list[str]
+    compiler: Literal["gcc", "clang"] = "gcc"
     diff: str = ""
+    repaired: int = 0  # number of compile self-repair rounds applied
 
 
 class BuildResult(BaseModel):
@@ -82,12 +88,16 @@ class BuildResult(BaseModel):
     binary_path: Optional[str] = None
     candidate_id: Optional[str] = None
     compile_ms: float = 0.0
+    flags: list[str] = Field(default_factory=list)
+    dropped_flags: list[str] = Field(default_factory=list)
 
 
 class TestResult(BaseModel):
     all_pass: bool
     failed_cases: list[str] = Field(default_factory=list)
     details: dict = Field(default_factory=dict)
+    sanitizer_ok: Optional[bool] = None
+    sanitizer_report: str = ""
 
 
 class BenchResult(BaseModel):
@@ -98,13 +108,20 @@ class BenchResult(BaseModel):
     p95_ms: float
     cv: float
     peak_mem_kb: int
+    cpu_median_ms: float = 0.0
+    cpu_runtimes_ms: list[float] = Field(default_factory=list)
+    cpu_cv: float = 0.0
     noisy: bool = False
+    failed_runs: int = 0
 
 
 class CompareResult(BaseModel):
     speedup: float
     p_value: float
     accepted_by_rule: bool
+    cpu_speedup: float = 0.0
+    baseline: Optional[BenchResult] = None
+    candidate: Optional[BenchResult] = None
 
 
 class Verdict(BaseModel):
@@ -113,6 +130,20 @@ class Verdict(BaseModel):
     reason: str
     feedback_for_strategist: str = ""
     stop: bool = False
+    stop_reason: str = ""
+
+
+class TokenUsage(BaseModel):
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    calls: int = 0
+    cost_usd: float = 0.0
+
+    def add(self, other: "TokenUsage") -> None:
+        self.prompt_tokens += other.prompt_tokens
+        self.completion_tokens += other.completion_tokens
+        self.calls += other.calls
+        self.cost_usd += other.cost_usd
 
 
 class RunState(BaseModel):
@@ -120,8 +151,18 @@ class RunState(BaseModel):
     program_id: str
     architecture: str
     messaging: str
+    prompt_style: str = "structured"
+    model_assignment: str = "single-cloud"
+    variant: str = "full"
     summary: Optional[ProgramSummary] = None
     profile: Optional[ProfileReport] = None
     history: list[dict] = Field(default_factory=list)
     best: Optional[dict] = None
     budget_attempts: int = 5
+    usage: TokenUsage = Field(default_factory=TokenUsage)
+    usage_by_agent: dict[str, TokenUsage] = Field(default_factory=dict)
+    messaging_stats: dict = Field(default_factory=dict)
+    stop_reason: str = ""
+    error: str = ""
+    started_at: float = 0.0
+    finished_at: float = 0.0

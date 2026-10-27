@@ -1,13 +1,14 @@
 """OpenTelemetry tracing with a JSONL file exporter.
 
-Every agent call and tool call becomes a span. Spans are appended to
-results/traces/spans.jsonl so metrics.py can reconstruct latency, cost and
-the critical path after the fact without a running collector.
+Every agent step and every MCP tool call becomes a span, with model,
+token and cost attributes on agent spans. Each run writes its own file,
+results/traces/<run_id>.jsonl (Section 10.3), so metrics.py can
+reconstruct latency, cost and the critical path after the fact without a
+running collector.
 
-Tracers come from a locally held TracerProvider rather than the global
+Tracers come from locally held TracerProviders rather than the global
 opentelemetry.trace API, since the global provider can only be set once
-per process -- that would make init_tracing() impossible to point at a
-different file within the same test run.
+per process -- that would make per-run trace files impossible.
 """
 
 from __future__ import annotations
@@ -20,11 +21,11 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, SpanExportResult
 from opentelemetry.trace import Tracer
 
-DEFAULT_TRACE_PATH = pathlib.Path("results/traces/spans.jsonl")
+TRACE_DIR = pathlib.Path("results/traces")
+DEFAULT_TRACE_PATH = TRACE_DIR / "spans.jsonl"
 
 _lock = threading.Lock()
-_provider: TracerProvider | None = None
-_provider_path: pathlib.Path | None = None
+_providers: dict[pathlib.Path, TracerProvider] = {}
 
 
 class JsonlExporter(SpanExporter):
@@ -35,7 +36,7 @@ class JsonlExporter(SpanExporter):
     def export(self, spans) -> SpanExportResult:
         with _lock, open(self._path, "a", encoding="utf-8") as f:
             for span in spans:
-                f.write(json.dumps(_span_to_dict(span)) + "\n")
+                f.write(json.dumps(_span_to_dict(span), default=str) + "\n")
         return SpanExportResult.SUCCESS
 
     def shutdown(self) -> None:
@@ -53,20 +54,30 @@ def _span_to_dict(span) -> dict:
         "start": span.start_time,
         "end": span.end_time,
         "dur_ms": (span.end_time - span.start_time) / 1e6 if span.end_time else None,
+        "status": span.status.status_code.name if span.status else "UNSET",
         "attrs": dict(span.attributes or {}),
     }
 
 
 def init_tracing(path: pathlib.Path = DEFAULT_TRACE_PATH) -> Tracer:
-    """Idempotent for a given path: returns the same tracer on repeated
-    calls, but a new path builds a fresh provider (mainly for tests)."""
-    global _provider, _provider_path
-    if _provider is None or _provider_path != path:
-        _provider = TracerProvider()
-        _provider.add_span_processor(SimpleSpanProcessor(JsonlExporter(path)))
-        _provider_path = path
-    return _provider.get_tracer("optiflow")
+    """Idempotent per path: repeated calls with the same path share one provider."""
+    path = pathlib.Path(path)
+    with _lock:
+        provider = _providers.get(path)
+        if provider is None:
+            provider = TracerProvider()
+            provider.add_span_processor(SimpleSpanProcessor(JsonlExporter(path)))
+            _providers[path] = provider
+    return provider.get_tracer("optiflow")
 
 
 def get_tracer() -> Tracer:
     return init_tracing()
+
+
+def run_tracer(run_id: str) -> Tracer:
+    return init_tracing(TRACE_DIR / f"{run_id}.jsonl")
+
+
+def trace_path(run_id: str) -> pathlib.Path:
+    return TRACE_DIR / f"{run_id}.jsonl"

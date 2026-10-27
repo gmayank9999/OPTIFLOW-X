@@ -1,0 +1,11 @@
+# E2: messaging mechanisms on the 10-program subset, under two architectures.
+name: e2_messaging
+programs: subset10
+defaults: {prompt_style: structured, variant: full, max_attempts: 5}
+runs:
+  - {architecture: sequential, messaging: blackboard}
+  - {architecture: sequential, messaging: p2p}
+  - {architecture: sequential, messaging: broadcast}
+  - {architecture: event, messaging: blackboard}
+  - {architecture: event, messaging: p2p}
+  - {architecture: event, messaging: broadcast}

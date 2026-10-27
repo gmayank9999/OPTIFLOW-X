@@ -1,0 +1,11 @@
+# E5: what each evidence source contributes to the Strategist.
+name: e5_ablations
+programs: subset10
+defaults: {architecture: sequential, messaging: blackboard, prompt_style: structured}
+runs:
+  - {variant: full}
+  - {variant: no_rag}
+  - {variant: no_xgb}
+  - {variant: llm_only}
+  - {variant: rule_only}
+  - {variant: flags_only, max_attempts: 1}

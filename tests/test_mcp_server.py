@@ -42,3 +42,17 @@ def test_compile_run_and_compare_round_trip():
     cmp = server.compare_to_baseline(build["candidate_id"], "fib_recursive", n=3)
     # identical source vs. itself: no real speedup expected
     assert 0.5 < cmp["speedup"] < 2.0
+
+
+def test_tools_work_over_the_real_stdio_protocol():
+    """The agents' path: a separate server process, JSON over stdio."""
+    from optiflow.agents.mcp_tools import McpToolClient
+
+    with McpToolClient() as tools:
+        program = tools.call("get_program", program_id="fib_recursive")
+        analysis = tools.call("static_analysis", source=program["source"], lang="c")
+        assert analysis["features"]["has_recursion"] == 1.0
+        build = tools.call("compile_code", source=program["source"], flags=["-O2", "-Ofast"])
+        assert build["ok"] and build["dropped_flags"] == ["-Ofast"]  # exact-compare program
+        tests = tools.call("run_tests", candidate_id=build["candidate_id"], program_id="fib_recursive")
+        assert tests["all_pass"] and tests["sanitizer_ok"] is True

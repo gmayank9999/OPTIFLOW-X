@@ -16,9 +16,16 @@ COLLECTION_NAME = "optiflow"
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100
 
-_embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name="all-MiniLM-L6-v2"
-)
+_embedding_fn = None
+
+
+def get_embedding_fn():
+    """Loaded on first use: importing the knowledge module (e.g. from the
+    API) shouldn't pay for loading a sentence-transformer model."""
+    global _embedding_fn
+    if _embedding_fn is None:
+        _embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+    return _embedding_fn
 
 
 def get_client() -> chromadb.ClientAPI:
@@ -39,7 +46,7 @@ def split(text: str, size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> li
 
 def ingest_corpus() -> int:
     client = get_client()
-    collection = client.get_or_create_collection(COLLECTION_NAME, embedding_function=_embedding_fn)
+    collection = client.get_or_create_collection(COLLECTION_NAME, embedding_function=get_embedding_fn())
 
     ids, documents, metadatas = [], [], []
     for path in sorted(CORPUS_DIR.glob("*.md")):

@@ -1,0 +1,8 @@
+# E1 (headline): architecture comparison. Blackboard, structured prompts.
+name: e1_architecture
+programs: all
+defaults: {messaging: blackboard, prompt_style: structured, variant: full, max_attempts: 5}
+runs:
+  - {architecture: sequential}
+  - {architecture: hierarchical}
+  - {architecture: event}

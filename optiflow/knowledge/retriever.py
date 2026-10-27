@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from optiflow.core.schemas import ProfileReport, ProgramSummary
-from optiflow.knowledge.ingest import COLLECTION_NAME, _embedding_fn, get_client
+from optiflow.knowledge.ingest import COLLECTION_NAME, get_client, get_embedding_fn
 
 
 def build_query(summary: ProgramSummary, profile: ProfileReport) -> str:
@@ -18,10 +18,20 @@ def build_query(summary: ProgramSummary, profile: ProfileReport) -> str:
 
 def retrieve(summary: ProgramSummary, profile: ProfileReport, k: int = 4) -> list[str]:
     client = get_client()
-    collection = client.get_or_create_collection(COLLECTION_NAME, embedding_function=_embedding_fn)
+    collection = client.get_or_create_collection(COLLECTION_NAME, embedding_function=get_embedding_fn())
     if collection.count() == 0:
         return []
 
     query = build_query(summary, profile)
+    result = collection.query(query_texts=[query], n_results=min(k, collection.count()))
+    return result["documents"][0] if result["documents"] else []
+
+
+def retrieve_text(query: str, k: int = 4) -> list[str]:
+    """Free-text search, used by the ReAct Strategist's knowledge_search tool."""
+    client = get_client()
+    collection = client.get_or_create_collection(COLLECTION_NAME, embedding_function=get_embedding_fn())
+    if collection.count() == 0:
+        return []
     result = collection.query(query_texts=[query], n_results=min(k, collection.count()))
     return result["documents"][0] if result["documents"] else []

@@ -1,0 +1,9 @@
+# E4: single vs per-agent model assignment. Needs keys/models for each config
+# (single-local and mixed need Ollama; mixed also needs STRONG_MODEL's key).
+name: e4_models
+programs: subset10
+defaults: {architecture: sequential, messaging: blackboard, prompt_style: structured, variant: full}
+runs:
+  - {model_assignment: single-cloud}
+  - {model_assignment: single-local}
+  - {model_assignment: mixed}
