@@ -18,7 +18,9 @@ from optiflow.core.schemas import RunState
 
 ARCHITECTURES = ("sequential", "hierarchical", "event")
 VARIANTS = ("full", "no_rag", "no_xgb", "llm_only", "rule_only", "flags_only")
-PROMPT_STYLES = ("structured", "react", "reflection")
+PROMPT_STYLES = ("structured", "react", "reflection", "few_shot")
+PERSONAS = ("default", "compiler_engineer", "hpc_researcher", "cautious_reviewer")
+CRITIC_BACKENDS = ("crewai", "adk_a2a")
 
 
 @dataclass
@@ -28,6 +30,12 @@ class RunConfig:
     prompt_style: str = "structured"
     model_assignment: str = "single-cloud"
     variant: str = "full"
+    persona: str = "default"
+    # Who writes rejection feedback: the in-process CrewAI critic, or the
+    # Google ADK reviewer reached over the A2A protocol.
+    critic_backend: str = "crewai"
+    # Optional user guidance for the Strategist; screened by the guardrail.
+    instructions: str = ""
     max_attempts: int = 5
     max_usd_per_run: float = 0.05
     bench_n: int | None = None  # None = adaptive, from the stability table
@@ -42,6 +50,17 @@ class RunConfig:
             raise ValueError(f"variant must be one of {VARIANTS}")
         if self.prompt_style not in PROMPT_STYLES:
             raise ValueError(f"prompt_style must be one of {PROMPT_STYLES}")
+        if self.persona not in PERSONAS:
+            raise ValueError(f"persona must be one of {PERSONAS}")
+        if self.critic_backend not in CRITIC_BACKENDS:
+            raise ValueError(f"critic_backend must be one of {CRITIC_BACKENDS}")
+        if self.instructions:
+            from optiflow.security.guardrails import GuardrailViolation, check_user_text
+
+            result = check_user_text(self.instructions)
+            if not result.ok:
+                raise GuardrailViolation(result)
+            self.instructions = self.instructions.strip()
 
     @property
     def uses_llm(self) -> bool:

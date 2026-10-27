@@ -67,9 +67,12 @@ class StartRunRequest(BaseModel):
     program_id: str
     architecture: Literal["sequential", "hierarchical", "event"] = "sequential"
     messaging: Literal["blackboard", "p2p", "broadcast"] = "blackboard"
-    prompt_style: Literal["structured", "react", "reflection"] = "structured"
+    prompt_style: Literal["structured", "react", "reflection", "few_shot"] = "structured"
     model_assignment: Literal["single-cloud", "single-local", "mixed"] = "single-cloud"
     variant: Literal["full", "no_rag", "no_xgb", "llm_only", "rule_only", "flags_only"] = "full"
+    persona: Literal["default", "compiler_engineer", "hpc_researcher", "cautious_reviewer"] = "default"
+    critic_backend: Literal["crewai", "adk_a2a"] = "crewai"
+    instructions: str = Field("", max_length=600)
     max_attempts: int = Field(5, ge=1, le=10)
 
 
@@ -191,12 +194,24 @@ def get_program(program_id: str) -> dict:
 def start_run(req: StartRunRequest) -> dict:
     if req.program_id not in list_programs():
         raise HTTPException(status_code=404, detail=f"unknown program: {req.program_id}")
+    from optiflow.security.guardrails import GuardrailViolation, check_user_text
+
+    # User text is screened before anything is queued: a prompt-injection or
+    # abusive instruction is rejected with the guardrail's findings.
+    screened = check_user_text(req.instructions)
+    if not screened.ok:
+        raise HTTPException(status_code=422, detail={"guardrail": screened.as_dict(),
+                                                     "message": f"instructions rejected: {screened.summary()}"})
     run_id = uuid.uuid4().hex
-    cfg = RunConfig(
-        architecture=req.architecture, messaging=req.messaging, prompt_style=req.prompt_style,
-        model_assignment=req.model_assignment, variant=req.variant, max_attempts=req.max_attempts,
-        experiment="dashboard", run_id=run_id,
-    )
+    try:
+        cfg = RunConfig(
+            architecture=req.architecture, messaging=req.messaging, prompt_style=req.prompt_style,
+            model_assignment=req.model_assignment, variant=req.variant, max_attempts=req.max_attempts,
+            persona=req.persona, critic_backend=req.critic_backend, instructions=req.instructions,
+            experiment="dashboard", run_id=run_id,
+        )
+    except GuardrailViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     with _lock:
         _runs[run_id] = {"status": "queued", "program_id": req.program_id, "config": req.model_dump(),
                          "events": [], "error": None, "queued_at": time.time()}
@@ -306,6 +321,28 @@ def ml_report() -> dict:
 @app.get("/api/stability")
 def stability() -> dict:
     return {"stability": _read_json(RESULTS / "stability.json"), "machine": _read_json(RESULTS / "machine.json")}
+
+
+@app.post("/api/guardrails/check")
+def guardrail_check(body: dict) -> dict:
+    """Lets the dashboard show the user why their guidance would be rejected
+    before they submit it."""
+    from optiflow.security.guardrails import check_user_text
+
+    return check_user_text(str(body.get("text", ""))).as_dict()
+
+
+@app.get("/api/guardrails/events")
+def guardrail_events(limit: int = 200) -> list[dict]:
+    """Recent guardrail findings across saved runs (audit view)."""
+    out = []
+    for run_dir in sorted(RUNS_DIR.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)[:100]:
+        report = load_report(run_dir.name)
+        if not report:
+            continue
+        for event in report["state"].get("guardrail_events", []):
+            out.append({"run_id": run_dir.name, "program_id": report["state"]["program_id"], **event})
+    return out[:limit]
 
 
 @app.get("/api/judge")

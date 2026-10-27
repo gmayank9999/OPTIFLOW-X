@@ -27,7 +27,7 @@ from optiflow.experiments.store import RUNS_CSV
 
 OUT_JSON = pathlib.Path("results/analysis.json")
 FIG_DIR = pathlib.Path("results/figures")
-FACTORS = ("architecture", "messaging", "prompt_style", "model_config", "variant")
+FACTORS = ("architecture", "messaging", "prompt_style", "persona", "critic_backend", "model_config", "variant")
 
 
 def load_runs(path: pathlib.Path | None = None) -> pd.DataFrame:
@@ -38,8 +38,12 @@ def load_runs(path: pathlib.Path | None = None) -> pd.DataFrame:
     if df.empty:
         return df
     df = df[df["error"].isna() | (df["error"] == "")] if "error" in df else df
+    for col, default in (("persona", "default"), ("critic_backend", "crewai"), ("repeat", 0)):
+        if col not in df:
+            df[col] = default
+        df[col] = df[col].fillna(default).replace("", default)
     for col in ("speedup", "cost_usd", "latency_s", "total_tokens", "success", "attempts", "messages",
-                "deliveries", "message_bytes", "cpu_speedup"):
+                "deliveries", "message_bytes", "cpu_speedup", "guardrail_flags", "a2a_calls", "a2a_latency_ms"):
         if col in df:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
     # Latest run wins when a cell was repeated by hand.
@@ -89,7 +93,9 @@ def summarize(df: pd.DataFrame, by: str) -> list[dict]:
 def paired_tests(df: pd.DataFrame, by: str) -> dict:
     """Friedman over configurations measured on the same programs, then
     Holm-corrected pairwise Wilcoxon signed-rank on log-speedups."""
-    pivot = df.pivot_table(index="program_id", columns=by, values="speedup", aggfunc="last").dropna()
+    # Repeats are averaged in log space (geometric mean) per program and level.
+    logged = df.assign(log_speedup=np.log(df["speedup"].clip(lower=1e-9)))
+    pivot = np.exp(logged.pivot_table(index="program_id", columns=by, values="log_speedup", aggfunc="mean")).dropna()
     levels = list(pivot.columns)
     result: dict = {"factor": by, "levels": levels, "paired_programs": int(len(pivot))}
     if len(levels) < 2 or len(pivot) < 5:

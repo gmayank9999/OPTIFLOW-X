@@ -28,7 +28,7 @@ PROGRAM = "palindrome_count"
 REWRITE = TEMPLATES[PROGRAM]["algorithmic"]
 
 
-def fake_call(agent, description, expected_output):
+def fake_call(agent, description, expected_output, **kwargs):
     usage = TokenUsage(prompt_tokens=len(description) // 4, completion_tokens=50, calls=1, cost_usd=0.0001)
     if "OptimizationPlan" in expected_output:
         plan = {"strategies": [{"name": "algorithm_change", "target": "main", "params": {},
@@ -108,7 +108,7 @@ def test_flags_only_baseline_needs_no_llm(monkeypatch):
 
 
 def test_unparseable_plan_becomes_a_rejected_attempt(monkeypatch):
-    def bad_plan(agent, description, expected_output):
+    def bad_plan(agent, description, expected_output, **kwargs):
         if "OptimizationPlan" in expected_output:
             return "I think you should make it faster.", TokenUsage(calls=1)
         return fake_call(agent, description, expected_output)

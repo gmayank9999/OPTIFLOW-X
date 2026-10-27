@@ -25,8 +25,8 @@ from optiflow.core.console import fix_windows_console_encoding
 from optiflow.experiments.store import read_rows
 from optiflow.tools.registry import list_programs
 
-CONFIG_KEYS = ("architecture", "messaging", "prompt_style", "model_assignment", "variant", "max_attempts",
-               "max_usd_per_run", "bench_n")
+CONFIG_KEYS = ("architecture", "messaging", "prompt_style", "model_assignment", "variant", "persona",
+               "critic_backend", "instructions", "max_attempts", "max_usd_per_run", "bench_n")
 
 
 def load_config(path: pathlib.Path) -> dict:
@@ -58,7 +58,8 @@ def done_signatures() -> set[tuple]:
         if r.get("error"):
             continue
         done.add((r["experiment"], r["architecture"], r["messaging"], r["prompt_style"], r["model_config"],
-                  r["variant"], r["program_id"]))
+                  r["variant"], r.get("persona") or "default", r.get("critic_backend") or "crewai",
+                  r["program_id"], int(r.get("repeat") or 0)))
     return done
 
 
@@ -77,10 +78,11 @@ def main() -> None:
         print(f"== {config['name']}: {len(todo)} cells", flush=True)
         for cfg, pid, repeat in todo:
             sig = (cfg.experiment, cfg.architecture, cfg.messaging, cfg.prompt_style, cfg.model_assignment,
-                   cfg.variant, pid)
-            if repeat == 0 and sig in done:
+                   cfg.variant, cfg.persona, cfg.critic_backend, pid, repeat)
+            if sig in done:
                 continue
-            label = f"{cfg.architecture}/{cfg.messaging}/{cfg.prompt_style}/{cfg.model_assignment}/{cfg.variant}"
+            label = (f"{cfg.architecture}/{cfg.messaging}/{cfg.prompt_style}/{cfg.persona}/"
+                     f"{cfg.critic_backend}/{cfg.variant}" + (f"#r{repeat}" if repeat else ""))
             if args.dry_run:
                 print(f"  would run {pid:24s} {label}")
                 continue

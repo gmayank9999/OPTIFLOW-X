@@ -27,10 +27,11 @@ EXPERIENCE = RESULTS / "experience.jsonl"
 
 CSV_COLUMNS = [
     "run_id", "experiment", "program_id", "category", "architecture", "messaging", "prompt_style",
-    "model_config", "variant", "success", "speedup", "cpu_speedup", "baseline_ms", "best_ms",
+    "model_config", "variant", "persona", "critic_backend", "success", "speedup", "cpu_speedup", "baseline_ms", "best_ms",
     "peak_mem_delta_kb", "attempts", "attempts_to_best", "compile_fail", "wrong_output",
     "sanitizer_fail", "total_tokens", "cost_usd", "latency_s", "crit_path_agent", "judge_score_mean",
-    "winning_strategy", "stop_reason", "messages", "deliveries", "message_bytes", "error",
+    "winning_strategy", "stop_reason", "messages", "deliveries", "message_bytes",
+    "guardrail_flags", "a2a_calls", "a2a_latency_ms", "repeat", "error",
     "started_at",
 ]
 
@@ -84,6 +85,8 @@ def row_from(state: RunState, cfg) -> dict:
         "prompt_style": state.prompt_style,
         "model_config": state.model_assignment,
         "variant": state.variant,
+        "persona": state.persona,
+        "critic_backend": state.critic_backend,
         "success": int(speedup >= 1.05 and best.get("attempt", 0) > 0),
         "speedup": round(speedup, 4),
         "cpu_speedup": round(float(compare.get("cpu_speedup", 1.0) or 1.0), 4),
@@ -105,6 +108,10 @@ def row_from(state: RunState, cfg) -> dict:
         "messages": state.messaging_stats.get("messages", 0),
         "deliveries": state.messaging_stats.get("deliveries", 0),
         "message_bytes": state.messaging_stats.get("bytes", 0),
+        "guardrail_flags": state.messaging_stats.get("guardrail_flags", 0),
+        "a2a_calls": state.messaging_stats.get("a2a_calls", 0),
+        "a2a_latency_ms": round(state.messaging_stats.get("a2a_latency_ms", 0.0), 1),
+        "repeat": int((getattr(cfg, "tags", {}) or {}).get("repeat", 0)),
         "error": (state.error or "").splitlines()[0][:200] if state.error else "",
         "started_at": round(state.started_at, 1),
     }
@@ -116,12 +123,29 @@ def append_csv(row: dict, path: pathlib.Path | None = None) -> None:
     path = path or RUNS_CSV
     with _lock:
         path.parent.mkdir(parents=True, exist_ok=True)
+        _migrate_header(path)
         new = not path.exists()
         with open(path, "a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS, extrasaction="ignore")
             if new:
                 writer.writeheader()
             writer.writerow(row)
+
+
+def _migrate_header(path: pathlib.Path) -> None:
+    """When CSV_COLUMNS gains columns, rewrite an existing file under the
+    new header (old rows get blanks) so appended rows stay aligned."""
+    if not path.exists():
+        return
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        if reader.fieldnames == CSV_COLUMNS:
+            return
+        rows = list(reader)
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def read_rows(path: pathlib.Path | None = None) -> list[dict]:

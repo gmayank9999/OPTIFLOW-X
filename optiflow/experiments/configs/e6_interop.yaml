@@ -1,0 +1,10 @@
+# E6: framework interoperability. Rejection feedback written by the
+# in-process CrewAI critic vs the Google ADK reviewer reached over A2A.
+# Same prompt, same output guardrail, same model family; what changes is
+# the framework and the protocol hop (latency, cost, quality of feedback).
+name: e6_interop
+programs: subset10
+defaults: {architecture: sequential, messaging: blackboard, prompt_style: structured, variant: full, max_attempts: 5}
+runs:
+  - {critic_backend: crewai}
+  - {critic_backend: adk_a2a}

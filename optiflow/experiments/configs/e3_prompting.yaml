@@ -1,4 +1,7 @@
-# E3: Strategist prompting styles. Sequential + blackboard.
+# E3: prompt variance on the Strategist, two kinds:
+#  - architecture of the prompt: structured / ReAct / reflection / few-shot
+#  - content via persona: same task and evidence, different role framing
+# Sequential + blackboard, so only the prompt changes.
 name: e3_prompting
 programs: subset10
 repeats: 1   # raise to 3 to average over LLM randomness
@@ -7,3 +10,7 @@ runs:
   - {prompt_style: structured}
   - {prompt_style: react}
   - {prompt_style: reflection}
+  - {prompt_style: few_shot}
+  - {prompt_style: structured, persona: compiler_engineer}
+  - {prompt_style: structured, persona: hpc_researcher}
+  - {prompt_style: structured, persona: cautious_reviewer}

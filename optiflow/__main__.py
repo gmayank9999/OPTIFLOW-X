@@ -24,6 +24,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     cfg = RunConfig(
         architecture=args.arch, messaging=args.messaging, prompt_style=args.prompt,
         model_assignment=args.models, variant=args.variant, max_attempts=args.attempts,
+        persona=args.persona, critic_backend=args.critic, instructions=args.instructions,
         max_usd_per_run=args.max_usd, experiment="cli",
     )
 
@@ -33,12 +34,15 @@ def cmd_run(args: argparse.Namespace) -> int:
             att = f"A{event['attempt']} " if event.get("attempt") else "   "
             cost = f"  ${event['cost_usd']:.4f}" if event.get("cost_usd") else ""
             print(f"  {att}{event['agent']:<14} {event['dur_ms'] / 1000:6.1f}s{cost}  {event.get('summary', '')[:90]}")
+        elif t == "guardrail":
+            print(f"  ! guardrail [{event.get('agent')}] {event.get('stage')}: {event.get('detail', '')[:80]}")
         elif t == "attempt_end":
             v = event["verdict"]
             mark = f"ACCEPT {v['speedup']:.2f}x" if v["accepted"] else f"reject: {v['reason']}"
             print(f"  -> {mark}   (best {event['best_speedup']:.2f}x)\n")
 
-    print(f"{args.program}  [{cfg.architecture} / {cfg.messaging} / {cfg.prompt_style} / {cfg.variant}]\n")
+    print(f"{args.program}  [{cfg.architecture} / {cfg.messaging} / {cfg.prompt_style} / {cfg.persona} / "
+          f"critic={cfg.critic_backend} / {cfg.variant}]\n")
     state = build(cfg, emit=None if args.quiet else show).run(args.program)
     best = state.best or {}
     print(f"best: {best.get('speedup', 1.0):.2f}x  ({'+'.join(best.get('strategies', [])) or 'no accepted change'})")
@@ -122,7 +126,12 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("program")
     r.add_argument("--arch", default="sequential", choices=["sequential", "hierarchical", "event"])
     r.add_argument("--messaging", default="blackboard", choices=["blackboard", "p2p", "broadcast"])
-    r.add_argument("--prompt", default="structured", choices=["structured", "react", "reflection"])
+    r.add_argument("--prompt", default="structured", choices=["structured", "react", "reflection", "few_shot"])
+    r.add_argument("--persona", default="default",
+                   choices=["default", "compiler_engineer", "hpc_researcher", "cautious_reviewer"])
+    r.add_argument("--critic", default="crewai", choices=["crewai", "adk_a2a"],
+                   help="adk_a2a: rejection feedback from the Google ADK reviewer over A2A")
+    r.add_argument("--instructions", default="", help="optional guidance for the Strategist (screened)")
     r.add_argument("--models", default=os.getenv("MODEL_ASSIGNMENT", "single-cloud"),
                    choices=["single-cloud", "single-local", "mixed"])
     r.add_argument("--variant", default="full",

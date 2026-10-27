@@ -30,6 +30,7 @@ from optiflow.agents.common import CandidateRejected, PlanError
 from optiflow.agents.mcp_tools import ToolClient, ToolError
 from optiflow.architectures.base import EventSink, RunConfig
 from optiflow.comms.base import Channel
+from optiflow.core import llm
 from optiflow.core.budget import RunBudget
 from optiflow.core.config import model_for
 from optiflow.core.schemas import (
@@ -56,6 +57,9 @@ class Pipeline:
             prompt_style=cfg.prompt_style,
             model_assignment=cfg.model_assignment,
             variant=cfg.variant,
+            persona=cfg.persona,
+            critic_backend=cfg.critic_backend,
+            instructions=cfg.instructions,
             budget_attempts=cfg.max_attempts,
             started_at=time.time(),
         )
@@ -109,8 +113,10 @@ class Pipeline:
         The body fills `rec`: rec["usage"] (TokenUsage), rec["summary"]
         (one line for the timeline), rec["data"] (small payload for the UI).
         """
-        rec: dict = {"usage": TokenUsage(), "summary": "", "data": {}}
+        rec: dict = {"usage": TokenUsage(), "summary": "", "data": {}, "model": None}
         model = model_for(agent_name, self.cfg.model_assignment) if self.llm_enabled(agent_name) else "none"
+        if agent_name == "critic" and self.cfg.critic_backend == "adk_a2a" and self.cfg.uses_llm:
+            model = "adk:verification_reviewer via a2a"
         span_attrs = {
             "agent": agent_name, "model": model, "arch": self.state.architecture,
             "messaging": self.state.messaging, "variant": self.cfg.variant,
@@ -119,7 +125,15 @@ class Pipeline:
         }
         t0 = time.time()
         self.emit("step_start", agent=agent_name, attempt=attempt)
-        with self.tracer.start_as_current_span(f"agent.{agent_name}", attributes=span_attrs) as span:
+        def on_framework_event(event: dict) -> None:
+            # CrewAI step/task callbacks and guardrail decisions for this step.
+            if event.get("kind") == "guardrail" and not event.get("ok", True):
+                self.record_guardrail(agent_name, attempt, event.get("stage", ""), event.get("detail", ""))
+            self.emit("agent_event", agent=agent_name, attempt=attempt, **event)
+            span.add_event(event.get("kind", "event"), {k: str(v)[:300] for k, v in event.items()})
+
+        with self.tracer.start_as_current_span(f"agent.{agent_name}", attributes=span_attrs) as span, \
+                llm.monitor(on_framework_event):
             status = "ok"
             try:
                 yield rec
@@ -141,6 +155,13 @@ class Pipeline:
                     tokens_in=usage.prompt_tokens, tokens_out=usage.completion_tokens,
                     cost_usd=usage.cost_usd, model=model,
                 )
+
+    def record_guardrail(self, agent: str, attempt: int | None, stage: str, detail: str) -> None:
+        event = {"agent": agent, "attempt": attempt, "stage": stage, "detail": str(detail)[:400], "t": time.time()}
+        with self._lock:
+            self.state.guardrail_events.append(event)
+            self.extra_stats["guardrail_flags"] = self.extra_stats.get("guardrail_flags", 0) + 1
+        self.emit("guardrail", **{k: v for k, v in event.items() if k != "t"})
 
     def _account(self, agent_name: str, usage: TokenUsage) -> None:
         with self._lock:
@@ -167,6 +188,8 @@ class Pipeline:
             rec["summary"] = summary.summary_text[:300]
             rec["data"] = {"features": summary.features, "loops": len(summary.loops)}
         self.state.summary = summary
+        for finding in summary.guardrail_findings:
+            self.record_guardrail("analyzer", None, f"program_source:{finding['rule']}", finding["excerpt"])
         if self.state.best is not None:
             self.ensure_best_source()
         self.channel.post("analyzer", "summary", summary.model_dump())
@@ -221,10 +244,13 @@ class Pipeline:
                     shared_context=self._shared_context("strategist"),
                     use_rag=self.cfg.variant not in ("no_rag", "llm_only"),
                     use_xgb=self.cfg.variant not in ("no_xgb", "llm_only"),
+                    instructions=self.cfg.instructions,
+                    persona=self.cfg.persona,
                 )
                 plan, rec["usage"], info = strategist.plan(
                     self.cfg.model_assignment, context, attempt, self.cfg.prompt_style
                 )
+                rec["data"]["persona"] = self.cfg.persona
                 rec["data"]["prompt_chars"] = info.get("prompt_chars")
                 rec["data"]["tool_calls"] = info.get("tool_calls", [])
             rec["summary"] = _plan_line(plan)
@@ -305,15 +331,17 @@ class Pipeline:
                 rejected_detail=rejected[1] if rejected else "",
             )
             if not verdict.accepted and self.llm_enabled("critic") and rejected is None:
-                verdict, rec["usage"] = critic.explain(
-                    self.agent("critic"), verdict, _plan_line(plan) if plan else "?",
-                    candidate.diff if candidate else "",
-                )
+                plan_line = _plan_line(plan) if plan else "?"
+                diff = candidate.diff if candidate else ""
+                if self.cfg.critic_backend == "adk_a2a":
+                    verdict, rec["usage"], rec["data"]["a2a"] = self._explain_via_a2a(verdict, plan_line, diff)
+                else:
+                    verdict, rec["usage"] = critic.explain(self.agent("critic"), verdict, plan_line, diff)
                 # explain() may have pushed spend over the cap
                 if not verdict.stop and self.budget.stop_reason():
                     verdict = verdict.model_copy(update={"stop": True, "stop_reason": self.budget.stop_reason()})
             rec["summary"] = ("ACCEPT " + f"{verdict.speedup:.2f}x") if verdict.accepted else f"REJECT {verdict.reason}"
-            rec["data"] = verdict.model_dump()
+            rec["data"] = {**verdict.model_dump(), **({"a2a": rec["data"]["a2a"]} if "a2a" in rec["data"] else {})}
 
         self.state.history.append({
             "attempt": attempt,
@@ -365,6 +393,27 @@ class Pipeline:
         except (ToolError, MissingContext) as exc:
             return self.judge(attempt, plan, candidate, build, tests, None,
                               rejected=(type(exc).__name__.lower(), str(exc)[:500]))
+
+    def _explain_via_a2a(self, verdict: Verdict, plan_line: str, diff: str):
+        """Rejection feedback from the Google ADK reviewer over A2A. Same
+        prompt and output guardrail as the in-process CrewAI critic, so the
+        two backends are directly comparable. A transport failure keeps the
+        rule-based evidence (never blocks the run) and is recorded."""
+        from optiflow.interop.a2a_client import A2AError, local_reviewer
+
+        try:
+            client = local_reviewer()
+            text, usage, info = client.review(critic.feedback_prompt(verdict, plan_line, diff))
+        except A2AError as exc:
+            self.extra_stats["a2a_errors"] = self.extra_stats.get("a2a_errors", 0) + 1
+            return verdict, TokenUsage(), {"error": str(exc)[:300]}
+        self.extra_stats["a2a_calls"] = self.extra_stats.get("a2a_calls", 0) + 1
+        self.extra_stats["a2a_latency_ms"] = self.extra_stats.get("a2a_latency_ms", 0.0) + info["latency_ms"]
+        ok, why = critic.clean_feedback(text)
+        if not ok or "blocked by the input guardrail" in text or "withheld by the output guardrail" in text:
+            self.record_guardrail("critic", None, "a2a_reply", why if not ok else text[:200])
+            return verdict, usage, {**info, "guardrail": "blocked"}
+        return critic.with_feedback(verdict, text), usage, info
 
     def finish(self, stop_reason: str = "", error: str = "") -> RunState:
         self.state.stop_reason = stop_reason or self.budget.stop_reason() or "completed"

@@ -1,0 +1,10 @@
+# E7: E1 again with three repeats per cell, so architecture differences can
+# be separated from LLM run-to-run randomness.
+name: e7_repeats
+programs: subset10
+repeats: 3
+defaults: {messaging: blackboard, prompt_style: structured, variant: full, max_attempts: 5}
+runs:
+  - {architecture: sequential}
+  - {architecture: hierarchical}
+  - {architecture: event}
