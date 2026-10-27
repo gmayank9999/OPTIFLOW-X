@@ -39,13 +39,22 @@ Machine: Intel i7-1185G7 laptop, Windows 11, Docker Desktop on WSL2
 - **First live LLM run** (matmul, sequential, Gemini flash-lite): loop
   interchange accepted at 4.89x, then tiling on top at 7.69x; 6 LLM calls,
   9.2k tokens, $0.0013.
-- **Strategy sweep** (in progress / see `results/ml_sweep_detail.json`):
-  -O3 alone barely moves the cache-bound programs (matmul ~1.0x,
+- **Strategy sweep** (`results/ml_sweep_detail.json`, all 50 programs, no
+  LLM): -O3 alone barely moves the cache-bound programs (matmul ~1.0x,
   frobenius ~1.0x) while a hand-written loop interchange gives 2.4-3.4x;
-  algorithmic rewrites give 30-1300x on the quadratic/exponential
-  programs. `-O3 -march=native` *fails the exact-output test* on
-  mandelbrot (FMA contraction changes rounding), which the verifier
-  catches.
+  algorithmic rewrites give 30-2000x on the quadratic/exponential
+  programs; clang -O3 is *slower* than gcc -O2 on some (rod_cutting
+  0.56x). `-O3 -march=native` *fails the exact-output test* on mandelbrot
+  (FMA contraction changes rounding), which the verifier catches.
+- **Strategy predictor** (`results/xgb_report.json`): 77 labels, 52
+  positive. Only `flags` has enough labels to train on, and its
+  leave-one-program-out AUC is 0.52 -- the static features cannot predict
+  whether -O3 helps. No strategy earned a model, so the predictor runs on
+  the static heuristic. Heuristic top-3 hit rate 97% vs 84% for a naive
+  "flags, interchange, tiling" list, but top-1 is 63% vs 71% for "always
+  flags". Caveat: the heuristic and the templates were written from the
+  same domain knowledge, so its top-3 rate is partly circular; the
+  ablations (no_xgb) are the fair test of whether the prior helps.
 
 ## Not done yet / limitations
 
