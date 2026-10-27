@@ -24,7 +24,7 @@ import time
 import uuid
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -144,6 +144,8 @@ def health() -> dict:
         "machine": _read_json(RESULTS / "machine.json"),
         "queue_depth": _queue.qsize(),
         "active_run": next((rid for rid, r in _runs.items() if r["status"] == "running"), None),
+        "write_requires_token": bool(os.getenv("OPTIFLOW_API_TOKEN")),
+        "a2a_reviewer": os.getenv("OPTIFLOW_A2A_URL") or "spawned on demand",
     }
 
 
@@ -190,7 +192,22 @@ def get_program(program_id: str) -> dict:
     }
 
 
-@app.post("/api/runs")
+def require_token(authorization: str | None = Header(None), x_api_token: str | None = Header(None)) -> None:
+    """Write access (starting runs spends LLM credits and machine time).
+    When OPTIFLOW_API_TOKEN is set -- always, for a public deployment --
+    POST endpoints need `Authorization: Bearer <token>` or `X-API-Token`.
+    Read-only endpoints stay public."""
+    expected = os.getenv("OPTIFLOW_API_TOKEN")
+    if not expected:
+        return
+    supplied = x_api_token or (authorization[7:] if authorization and authorization.lower().startswith("bearer ") else None)
+    import hmac
+
+    if not supplied or not hmac.compare_digest(supplied, expected):
+        raise HTTPException(status_code=401, detail="a valid API token is required to start runs")
+
+
+@app.post("/api/runs", dependencies=[Depends(require_token)])
 def start_run(req: StartRunRequest) -> dict:
     if req.program_id not in list_programs():
         raise HTTPException(status_code=404, detail=f"unknown program: {req.program_id}")

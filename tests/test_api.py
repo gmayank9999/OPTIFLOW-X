@@ -50,3 +50,14 @@ def test_health_reports_sandbox_and_keys_without_values():
 @pytest.mark.parametrize("path", ["/api/runs", "/api/metrics/agents", "/api/experiments/summary", "/api/ml", "/api/stability"])
 def test_read_endpoints_respond(path):
     assert client.get(path).status_code == 200
+
+
+def test_write_endpoint_requires_token_when_configured(monkeypatch):
+    monkeypatch.setenv("OPTIFLOW_API_TOKEN", "s3cret")
+    body = {"program_id": "does_not_exist"}
+    assert client.post("/api/runs", json=body).status_code == 401
+    assert client.post("/api/runs", json=body, headers={"Authorization": "Bearer wrong"}).status_code == 401
+    # right token gets past auth (then 404 for the unknown program)
+    assert client.post("/api/runs", json=body, headers={"Authorization": "Bearer s3cret"}).status_code == 404
+    assert client.post("/api/runs", json=body, headers={"X-API-Token": "s3cret"}).status_code == 404
+    assert client.get("/api/health").json()["write_requires_token"] is True

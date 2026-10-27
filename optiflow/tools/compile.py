@@ -9,6 +9,7 @@ in BuildResult.dropped_flags so the Strategist learns why).
 
 from __future__ import annotations
 
+import os
 import pathlib
 import shutil
 import tempfile
@@ -64,6 +65,17 @@ def _evict() -> None:
         shutil.rmtree(entry["dir"], ignore_errors=True)
 
 
+def work_root() -> str | None:
+    """Where candidate build directories live. Unset: the system temp dir.
+    In a container that drives the *host's* Docker daemon (docker-compose
+    deployment), this must be a directory mounted at the same path on host
+    and container, or the sandbox's bind mounts would point nowhere."""
+    root = os.getenv("OPTIFLOW_WORKDIR")
+    if root:
+        os.makedirs(root, exist_ok=True)
+    return root or None
+
+
 def sanitize_flags(flags: list[str] | None, allow_unsafe_math: bool = False) -> tuple[list[str], list[str]]:
     """Returns (kept, dropped). Keeps order, removes duplicates, guarantees an -O level."""
     kept: list[str] = []
@@ -92,7 +104,7 @@ def compile_and_register(
     else:
         kept, dropped = sanitize_flags(flags, allow_unsafe_math)
 
-    workdir = tempfile.mkdtemp(prefix="cand_")
+    workdir = tempfile.mkdtemp(prefix="cand_", dir=work_root())
     fname = "main.c" if lang == "c" else "main.cpp"
     pathlib.Path(workdir, fname).write_text(source, encoding="utf-8")
 

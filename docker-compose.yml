@@ -1,0 +1,57 @@
+# OPTIFLOW-X deployment: the app (CrewAI agents + API + dashboard) and the
+# Google ADK reviewer as two services that talk over the A2A protocol.
+#
+#   docker compose build sandbox      # the locked-down image candidates run in
+#   docker compose up -d --build      # app on :8000, reviewer on the internal network
+#
+# Requires a .env (see .env.example). For anything reachable from the
+# internet, set OPTIFLOW_API_TOKEN so only you can start runs.
+
+x-optiflow-env: &optiflow-env
+  env_file: .env
+  environment:
+    OPTIFLOW_WORKDIR: /var/optiflow/work
+    SANDBOX_IMAGE: optiflow-sandbox
+    CREWAI_DISABLE_TELEMETRY: "true"
+
+services:
+  sandbox:
+    # Build-only service: produces the image every candidate runs in.
+    image: optiflow-sandbox
+    build:
+      context: .
+      dockerfile: docker/sandbox.Dockerfile
+    profiles: ["build"]
+
+  reviewer:
+    # Google ADK agent served over A2A (agent card at /.well-known/agent-card.json).
+    image: optiflow-app
+    build: .
+    <<: *optiflow-env
+    environment:
+      A2A_PUBLIC_HOST: reviewer
+      CREWAI_DISABLE_TELEMETRY: "true"
+    command: ["python", "-m", "optiflow.interop.a2a_server", "--host", "0.0.0.0", "--port", "8790"]
+    expose: ["8790"]
+    restart: unless-stopped
+
+  app:
+    image: optiflow-app
+    build: .
+    <<: *optiflow-env
+    environment:
+      OPTIFLOW_WORKDIR: /var/optiflow/work
+      SANDBOX_IMAGE: optiflow-sandbox
+      OPTIFLOW_A2A_URL: http://reviewer:8790
+      CREWAI_DISABLE_TELEMETRY: "true"
+    depends_on: [reviewer]
+    ports: ["8000:8000"]
+    volumes:
+      # The app starts sandbox containers on the *host* daemon...
+      - /var/run/docker.sock:/var/run/docker.sock
+      # ...so candidate build dirs must exist at the same path on both sides.
+      - /var/optiflow/work:/var/optiflow/work
+      - ./results:/app/results
+    group_add:
+      - "${DOCKER_GID:-999}"   # gid of /var/run/docker.sock on the host
+    restart: unless-stopped
