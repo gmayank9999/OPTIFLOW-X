@@ -1,0 +1,64 @@
+# Status
+
+Last updated: 27 Oct 2026. This file says what is built, what has been
+measured, and what hasn't, without rounding up.
+
+## Built and tested
+
+| Area | State |
+|---|---|
+| Sandbox | Docker, no network (outbound connect tested to fail), non-root, zero effective capabilities (tested), read-only root, memory/PID limits, timeout. `CAP_PERFMON` only for profiling the trusted baseline. |
+| Correctness | Exit status + output on 3 inputs; ASan + UBSan build on the small inputs (tested to catch an out-of-bounds read that still prints the right checksum). |
+| Timing | `hrtime` harness (ns wall clock, CPU time, peak RSS); binaries + input staged in tmpfs; baseline and candidates interleaved in one container; 10-30 runs depending on runtime; Mann-Whitney U. |
+| Profiling | Real `perf stat` counters and `perf record` samples rolled up onto loops (hotspot = tightest loop holding the time). cachegrind / gprof fallbacks. |
+| Static analysis | Every feature computed from the tree-sitter AST and scoped correctly (recursion = a function calling itself; mallocs only inside loops; strlen only in loop conditions; stride mismatch only in nested innermost loops). |
+| Agents | 7 agents. Every sandbox access goes through one MCP stdio session. Token usage and USD cost metered per LLM call. Strategist sees the line-numbered source and real hotspots; malformed plans get one retry, then become a rejected attempt instead of a crash. |
+| Critic | Deterministic accept/reject (compile, tests, sanitizers, >= 1.05x, p < 0.05, > 2% better than current best, not identical to current best); LLM only writes rejection feedback. Stop rules: budget, USD cap, diminishing returns, 3 rejects in a row. |
+| Architectures | Sequential, Hierarchical (manager LLM with guardrails), Event-driven (event bus; profiling in parallel with analysis). All three tested end to end. |
+| Messaging | Blackboard / peer-to-peer / broadcast. Steps read their inputs from the channel, so the mechanism changes what agents see. All three tested end to end. |
+| Prompting | Structured, ReAct (RAG + predictor as real tools), reflection (draft, critique, revise). |
+| Ablations | full, no_rag, no_xgb, llm_only, rule_only (no LLM), flags_only (no LLM). |
+| Observability | One OpenTelemetry trace file per run with model/tokens/cost on agent spans; per-agent latency, P95, cost share, critical-path share. LLM judge with rubric + human-validation workflow. |
+| Experiments | YAML configs E0-E5, resumable matrix runner, analysis (geo-mean, Wilson CI, Friedman + Holm-Wilcoxon, Pareto), figures. |
+| Dashboard | Next.js static export served by the API: overview, live run view (trace timeline over WebSocket, receipts, timing strip plots, diffs), programs with perf heat gutter, agents, experiments, predictor, method. Light/dark. |
+| Tests | 130+ tests; `tests/test_architectures.py` runs all three architectures for real with a scripted LLM stand-in. |
+
+## Measured on this machine
+
+Machine: Intel i7-1185G7 laptop, Windows 11, Docker Desktop on WSL2
+(`results/machine.json`). This is a noisy place to time code; see below.
+
+- **Stability** (10 runs x 2 sessions, all 50 programs, machine otherwise
+  undisturbed): 32/50 programs have within-session CV < 3%, 41/50 < 5%.
+  38/50 baselines run 0.3-5 s at -O2; 12 are shorter (parse-bound graph/DP
+  programs, plus two ~20 ms programs where GCC already hoists the
+  redundant work). Short programs get up to 30 timed runs.
+- **Wall vs CPU time**: under background load both clocks show the same CV,
+  i.e. the noise is CPU speed variation, not descheduling. Wall time is
+  kept (as the plan specifies); interleaving is what protects comparisons.
+- **First live LLM run** (matmul, sequential, Gemini flash-lite): loop
+  interchange accepted at 4.89x, then tiling on top at 7.69x; 6 LLM calls,
+  9.2k tokens, $0.0013.
+- **Strategy sweep** (in progress / see `results/ml_sweep_detail.json`):
+  -O3 alone barely moves the cache-bound programs (matmul ~1.0x,
+  frobenius ~1.0x) while a hand-written loop interchange gives 2.4-3.4x;
+  algorithmic rewrites give 30-1300x on the quadratic/exponential
+  programs. `-O3 -march=native` *fails the exact-output test* on
+  mandelbrot (FMA contraction changes rounding), which the verifier
+  catches.
+
+## Not done yet / limitations
+
+- The full experiment matrix (E1 on all 50 programs, E2-E5) has not been
+  run; only the configurations recorded in `results/runs.csv` have. The
+  runner is resumable, so this is a matter of machine time and API budget.
+- Timing on a laptop under WSL2 is noisier than the plan's target (CV < 3%
+  for all programs). A quiet Linux machine with pinned cores would do
+  better; the protocol does not need to change.
+- `single-local` and `mixed` model assignments need Ollama (and the mixed
+  config an OpenAI key); only `single-cloud` (Gemini) has been exercised.
+- The strategy predictor is trained on a small dataset by design (one row
+  per program); `results/xgb_report.json` says which strategies earned a
+  model and which fall back to the heuristic.
+- The LLM judge has not been validated against human scores yet
+  (`python -m optiflow.observability.judge export-human 30`).

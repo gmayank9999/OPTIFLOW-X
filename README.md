@@ -2,80 +2,40 @@
 
 Measurement-driven multi-agent optimization of C/C++ programs.
 
-OPTIFLOW-X takes a slow C/C++ program, profiles it, proposes source- and
-flag-level optimizations through a set of specialized LLM agents, applies
-them, and verifies every claim with real tools: the code has to compile, the
-output has to match a reference exactly (or within tolerance), and the
-speedup has to hold up under repeated, statistically checked timing runs.
-Nothing is accepted on the model's word alone.
+OPTIFLOW-X takes a slow C program, profiles it, has a team of LLM agents
+propose source- and flag-level optimizations, and accepts a change only
+when real tools agree:
 
-The project also runs as a small research study: the same optimization loop
-is executed under different multi-agent architectures (sequential,
-hierarchical, event-driven), messaging styles (blackboard, peer-to-peer,
-broadcast) and prompting strategies, and the results are compared on
-accuracy, latency and cost.
+- it **compiles** (whitelisted flags, in a locked-down Docker sandbox),
+- its output **matches the reference** on three inputs (including n=1 and
+  odd sizes like 33) *and* it exits cleanly,
+- an **AddressSanitizer + UBSan** build of it runs clean on the small inputs,
+- it is **faster under a significance test**: baseline and candidate are timed
+  interleaved in the same container, and the median speedup must be
+  >= 1.05x with a one-sided Mann-Whitney U p < 0.05,
+- and it beats the best candidate found so far.
+
+The accept/reject decision and the stopping rule are deterministic code.
+LLMs propose; tools dispose.
+
+The project is also a small research study: the same loop runs under three
+architectures (sequential, hierarchical, event-driven), three messaging
+mechanisms (blackboard, peer-to-peer, broadcast), three prompting styles
+(structured, ReAct, reflection), three model assignments, and a set of
+ablations, compared on success, speedup, latency and cost.
 
 ## Status
 
-Actively being built. See the commit history for what exists today; this
-README describes the target shape of the system, not a finished product.
+See [`STATUS.md`](STATUS.md) for what has been measured so far, what hasn't,
+and known limitations. The short version: the system is complete end to end
+(all three architectures, all three messaging modes, all three prompting
+styles, ablations, tracing, statistics, dashboard), every component is
+tested, and the experiment matrix is ready to run. How many experiment cells
+have actually been run is recorded in `results/runs.csv`.
 
-The core loop is verified working end to end: a real run against
-`matmul_naive` with a Gemini key produced three consecutive accepted,
-statistically verified speedups (4.33x, then 5.06x, then 5.69x), each one
-compiled, tested against the reference outputs, and benchmarked for real
-in the Docker sandbox. All 50 benchmark programs are written and verified.
-Hierarchical/Event-Driven architectures, the XGBoost training sweep, and
-the dashboard are not built yet.
+## Quick start
 
-## How it works, in one run
-
-1. **Analyzer** reads the source and extracts loops, functions and static
-   features with tree-sitter.
-2. **Profiler** runs the baseline in a sandbox and collects timing and
-   hardware counters (or a cachegrind/gprof fallback).
-3. **Strategist** combines the profile, a small RAG knowledge base of
-   compiler-optimization notes, and an XGBoost ranking model to propose one
-   or two source-level transformations.
-4. **Transformer** rewrites the source accordingly.
-5. **Compiler & Executor** builds the candidate in a locked-down Docker
-   sandbox, self-repairing compile errors up to twice.
-6. **Benchmark** times the candidate: warm-up runs discarded, ten timed
-   runs, median/P95/CV reported.
-7. **Critic** applies a deterministic accept/reject rule (compile ok, tests
-   pass, speedup >= 1.05 with p < 0.05) and either stops or sends feedback
-   back to the Strategist for another attempt.
-
-Every step is traced with OpenTelemetry so latency, token cost and the
-critical path can be reconstructed after the fact.
-
-## Repository layout
-
-```
-optiflow/
-  core/           shared schemas, config, LLM/model routing, attempt budget
-  tools/          sandbox runner, compiler, benchmark, verifier, profiler, analyzer
-  mcp_server/     MCP tool server all agents call into
-  agents/         the seven CrewAI agents and their prompts
-  knowledge/      RAG ingestion and retrieval
-  ml/             XGBoost strategy predictor
-  comms/          blackboard / peer-to-peer / broadcast messaging
-  architectures/  sequential / hierarchical / event-driven orchestration
-  observability/  tracing, metrics, LLM-judge scoring
-  experiments/    experiment matrix runner and analysis
-  api/            FastAPI backend
-
-benchmarks/       the C/C++ benchmark suite (source, inputs, expected outputs)
-docker/           sandbox image definition
-dashboard/        Next.js frontend
-results/          run outputs, traces, figures (generated, not versioned)
-tests/            test suite
-```
-
-## Setup
-
-Requirements: Python 3.11 (CrewAI does not yet support 3.14), Docker
-Desktop, Node 20+ for the dashboard.
+Requirements: Python 3.11, Docker, Node 20+ (only to rebuild the dashboard).
 
 ```bash
 py -3.11 -m venv .venv
@@ -83,50 +43,109 @@ py -3.11 -m venv .venv
 pip install -r requirements.txt
 
 docker build -t optiflow-sandbox -f docker/sandbox.Dockerfile .
+copy .env.example .env          # add an API key (one Gemini key is enough)
+python -m optiflow.knowledge.ingest
 
-copy .env.example .env
-# fill in API keys for whichever LLM provider you're using
+cd dashboard && npm install && npm run build && cd ..
+uvicorn optiflow.api.main:app --port 8000
 ```
 
-If you only have a key for one provider, set `MODEL_ASSIGNMENT=single-cloud`
-in `.env` so every agent role routes to `CLOUD_MODEL` instead of the mixed
-assignment, which expects separate keys for the local/strong/cloud models.
+Open http://localhost:8000. Without an API key, the flags-only and rule-based
+baselines still run. For dashboard development, `npm run dev` in `dashboard/`
+serves on :3000 and talks to the API on :8000.
 
-Run the test suite (Docker must be running; a handful of tests also need
-`chromadb`/`sentence-transformers`, which `requirements.txt` already covers):
+## How one run works
+
+| # | Agent | What it does | Tools |
+|---|---|---|---|
+| 1 | Analyzer | tree-sitter: loops, nesting, features; LLM writes a short structural summary | MCP `get_program`, `static_analysis` |
+| 2 | Profiler | `perf stat` counters (IPC, L1/LLC, branches) and `perf record` samples rolled up onto loops; cachegrind/gprof fallback | MCP `profile_program` |
+| 3 | Strategist | plans 1-2 strategies from the source, profile, RAG technique cards and the strategy predictor | local RAG + predictor (tools in ReAct mode) |
+| 4 | Transformer | rewrites the current best source; output passes a safety filter | none |
+| 5 | Compiler & Executor | compiles; LLM self-repairs compile errors (max 2); runs tests and sanitizers | MCP `compile_code`, `run_tests` |
+| 6 | Benchmark | interleaved baseline-vs-candidate timing, 10-30 runs | MCP `compare_to_baseline` |
+| 7 | Critic | rules decide; on rejection the LLM writes feedback for the Strategist | none |
+
+Accepted changes stack: the next attempt starts from the best candidate.
+The run stops on the attempt budget, the USD cap, two accepted attempts in a
+row that each gain < 3%, or three rejections in a row.
+
+Every tool call goes through one MCP stdio session to
+`optiflow/mcp_server/server.py`; no agent touches Docker directly. Every
+step is an OpenTelemetry span with model, tokens and cost
+(`results/traces/<run_id>.jsonl`), and every run is saved to
+`results/runs/<run_id>/` plus a row in `results/runs.csv`.
+
+### Architectures, messaging, prompting
+
+- **Sequential**: fixed loop in Python.
+- **Hierarchical**: a Manager LLM chooses `plan` / `retransform` / `stop` each turn, inside deterministic guardrails.
+- **Event-driven**: handlers on an event bus; profiling the baseline runs in parallel with the Analyzer.
+- **Messaging**: all step inputs are read *from the channel*. Blackboard lets agents pull any topic; peer-to-peer delivers only along a routing table; broadcast pushes everything into every inbox. What the Strategist sees, and pays tokens for, differs accordingly.
+- **Prompting**: structured (RAG + ranking injected), ReAct (RAG + ranking as tools the agent calls), reflection (draft, self-critique, revise).
+
+## Measurement
+
+- `hrtime` (`docker/hrtime.c`): CLOCK_MONOTONIC wall time, CPU time and peak RSS via `wait4`.
+- Binaries and input are staged in the container's tmpfs before timing; reading input from the Docker Desktop bind mount made wall time erratic.
+- Inputs are sized so most baselines run 0.3-2 s at -O2.
+- `python -m optiflow.experiments.stability` measures CV per program across sessions and writes `results/stability.json` and `results/machine.json`; short programs get more repetitions automatically.
+
+## Strategy predictor
+
+`python -m optiflow.ml.run_sweep` benchmarks, without any LLM, four flag
+variants for all 50 programs plus 27 hand-written single-strategy rewrites,
+each verified against the reference outputs. Untested strategies stay
+unlabeled (not negative). `python -m optiflow.ml.train_xgb` trains one small
+classifier per strategy, evaluates it leave-one-program-out, and uses it
+only where it beats the static heuristic on held-out programs. The
+dashboard's Predictor page shows which strategies earned a model.
+
+## Experiments
 
 ```bash
-pytest tests/
+python -m optiflow.experiments.run_matrix optiflow/experiments/configs/e0_baselines.yaml
+python -m optiflow.experiments.run_matrix optiflow/experiments/configs/e1_architecture.yaml --programs matmul_naive lcs
+python -m optiflow.experiments.analyze_results          # results/analysis.json + figures
+python -m optiflow.observability.judge score            # LLM-judge scores for every plan
 ```
 
-Regenerate benchmark reference outputs (only ever run once, before any
-experiments start):
+The runner is resumable (finished cells are skipped). Configs: E0 LLM-free
+baselines, E1 architecture, E2 messaging, E3 prompting, E4 model
+assignment, E5 ablations. Analysis reports geometric-mean speedup, success
+with Wilson intervals, Friedman + Holm-corrected Wilcoxon tests on paired
+programs, cost/latency percentiles and a cost-vs-success Pareto front.
+
+## Tests
 
 ```bash
-python benchmarks/make_expected.py
+pytest tests/        # Docker must be running
 ```
 
-Run one optimization loop end to end from a Python shell:
+`tests/test_architectures.py` runs all three architectures end to end
+(real sandbox, compiler, sanitizers, benchmark) with a scripted stand-in for
+the LLM, so the orchestration is verified without an API key.
 
-```python
-from optiflow.architectures.base import RunConfig
-from optiflow.architectures.sequential import Sequential
-from optiflow.comms.blackboard import Blackboard
+## Repository layout
 
-cfg = RunConfig(architecture="sequential", messaging="blackboard",
-                 model_assignment="single-cloud", max_attempts=5)
-state = Sequential(Blackboard(), cfg).run("matmul_naive")
-print(state.best["speedup"])
 ```
-
-## Benchmark suite
-
-50 deliberately unoptimized but correct C/C++ programs across matrix/linear
-algebra, stencils, sorting/searching, graphs, dynamic programming, strings
-and data layout, each with three test inputs and exact reference outputs.
-A 10-program subset (`benchmarks/manifest.json`, `subset10: true`) is used
-for the architecture/messaging/prompting experiments so those comparisons
-stay affordable.
+optiflow/
+  core/           schemas, config + model routing + pricing, LLM metering, budget
+  tools/          sandbox, compile, verify (+sanitizers), bench (hrtime), profile (perf), analyze
+  mcp_server/     the MCP tool server
+  agents/         the seven agents, prompts, MCP client
+  architectures/  pipeline steps + sequential / hierarchical / event-driven
+  comms/          blackboard / peer-to-peer / broadcast
+  knowledge/      technique cards, ingestion, retrieval
+  ml/             features, sweep templates, dataset, training, predictor
+  observability/  tracing, metrics, LLM judge
+  experiments/    configs, matrix runner, stability test, run store, analysis
+  api/            FastAPI backend (serves the dashboard build at /)
+dashboard/        Next.js dashboard (static export)
+benchmarks/       50 programs, inputs, reference outputs
+docker/           sandbox image + hrtime harness
+tests/
+```
 
 ## License
 
