@@ -20,6 +20,11 @@ measured, and what hasn't, without rounding up.
 | Ablations | full, no_rag, no_xgb, llm_only, rule_only (no LLM), flags_only (no LLM). |
 | Observability | One OpenTelemetry trace file per run with model/tokens/cost on agent spans; per-agent latency, P95, cost share, critical-path share. LLM judge with rubric + human-validation workflow. |
 | Experiments | YAML configs E0-E5, resumable matrix runner, analysis (geo-mean, Wilson CI, Friedman + Holm-Wilcoxon, Pareto), figures. |
+| Frameworks + A2A | The seven-agent team is CrewAI; the Verification Reviewer is a Google ADK agent served with `to_a2a` and called from CrewAI over A2A (a2a-sdk). Tested offline (deterministic ADK agent) and live (real Gemini tokens over A2A); a full optimization run with `critic_backend=adk_a2a` completed. |
+| Guardrails | Injection/abuse scanning of user guidance (HTTP 422 with findings), program source (poisoned comments neutralized; zero false positives on the 50 programs) and LLM output; CrewAI task guardrails with retry on Strategist/Transformer/Critic/Analyzer; type-checked MCP tool returns; ADK before/after model and tool callbacks. |
+| Monitoring | CrewAI step + task callbacks and guardrail decisions stream into each run's event log and trace (tool-free CrewAI agents answer in one step, so only tool-using agents produce step callbacks). |
+| Prompt variance | structured / ReAct / reflection / few-shot, and four Strategist personas. |
+| Deployment | Dockerfile (pinned to tested versions) + docker-compose (app and ADK reviewer as separate services over A2A) + GCP guide. Verified locally with docker compose: a run through the stack was accepted at 258x and the app reached the reviewer over A2A across containers. Not yet deployed to a cloud account. |
 | Dashboard | Next.js static export served by the API: overview, live run view (trace timeline over WebSocket, receipts, timing strip plots, diffs), programs with perf heat gutter, agents, experiments, predictor, method. Light/dark. |
 | Tests | 130+ tests; `tests/test_architectures.py` runs all three architectures for real with a scripted LLM stand-in. |
 
@@ -79,6 +84,15 @@ Machine: Intel i7-1185G7 laptop, Windows 11, Docker Desktop on WSL2
   stops earliest and spends least.
 
 ## Not done yet / limitations
+
+- **LLM quota:** the Gemini key is on the free tier (500 requests/day per
+  model). Campaign 2 (E6 interop, E3 prompting + personas, E2 messaging,
+  E5 ablations, E7 repeats) stopped after 4 E6 runs when the daily quota
+  ran out; the runner now stops cleanly on a daily quota and resumes from
+  where it stopped. Finishing needs either billing enabled (~$1 at the
+  measured cost per run) or ~25 runs per day on the free tier.
+- **Cloud:** everything is ready (`deploy/README.md`) but deploying needs
+  a GCP account with billing and the commits pushed to GitHub.
 
 - E1 on all 50 programs, E2-E5, and repeats have not been run. The
   runner is resumable, so this is a matter of machine time and API budget.
