@@ -10,18 +10,47 @@ export function apiOrigin(): string {
   return window.location.port === "3000" ? "http://localhost:8000" : window.location.origin;
 }
 
+const TOKEN_KEY = "optiflow-api-token";
+
+export function getToken(): string {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function setToken(token: string) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {}
+}
+
+export class ApiError extends Error {
+  constructor(public status: number, message: string, public detail: any) {
+    super(message);
+  }
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
   const res = await fetch(`${apiOrigin()}/api${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers || {}),
+    },
     cache: "no-store",
   });
   if (!res.ok) {
-    let detail = res.statusText;
+    let detail: any = res.statusText;
     try {
       detail = (await res.json()).detail ?? detail;
     } catch {}
-    throw new Error(`${res.status} ${detail}`);
+    const message = typeof detail === "string" ? detail : detail?.message ?? JSON.stringify(detail);
+    throw new ApiError(res.status, `${res.status} ${message}`, detail);
   }
   return res.json() as Promise<T>;
 }
@@ -78,7 +107,13 @@ export type Health = {
   machine: Record<string, string> | null;
   queue_depth: number;
   active_run: string | null;
+  write_requires_token?: boolean;
+  a2a_reviewer?: string;
 };
+
+export type GuardrailFinding = { kind: string; rule: string; excerpt: string };
+export type GuardrailCheck = { ok: boolean; surface: string; findings: GuardrailFinding[] };
+export type GuardrailEvent = { run_id: string; program_id: string; agent: string; attempt: number | null; stage: string; detail: string; t?: number };
 
 export type ProgramRow = {
   id: string;
@@ -169,7 +204,15 @@ export type RunRow = {
 };
 
 export type RunEvent = {
-  type: "run_start" | "step_start" | "step_end" | "attempt_end" | "run_end";
+  type: "run_start" | "step_start" | "step_end" | "attempt_end" | "run_end" | "agent_event" | "guardrail";
+  kind?: string;
+  stage?: string;
+  detail?: string;
+  step_type?: string;
+  preview?: string;
+  thought?: string;
+  tool?: string;
+  ok?: boolean;
   t: number;
   run_id: string;
   agent?: string;
@@ -219,6 +262,10 @@ export type RunDetail = {
     usage: { prompt_tokens: number; completion_tokens: number; calls: number; cost_usd: number };
     usage_by_agent: Record<string, { prompt_tokens: number; completion_tokens: number; cost_usd: number }>;
     messaging_stats: Record<string, any>;
+    guardrail_events?: { agent: string; attempt: number | null; stage: string; detail: string }[];
+    persona?: string;
+    critic_backend?: string;
+    instructions?: string;
     stop_reason: string;
     error: string;
     started_at: number;

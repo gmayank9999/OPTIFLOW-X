@@ -13,7 +13,7 @@ const ROLE: Record<string, string> = {
   transformer: "LLM: rewrites source · no tools",
   compiler_exec: "MCP: compile_code, run_tests · LLM self-repair",
   benchmark: "MCP: compare_to_baseline · no LLM",
-  critic: "Rules decide · LLM explains rejections",
+  critic: "Rules decide · LLM explains rejections (CrewAI, or a Google ADK agent over A2A)",
 };
 
 export default function AgentsPage() {

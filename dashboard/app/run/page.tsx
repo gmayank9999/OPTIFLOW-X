@@ -86,6 +86,8 @@ function RunView() {
               <Pill tone="outline">{cfg.messaging}</Pill>
               <Pill tone="outline">{cfg.prompt_style}</Pill>
               <Pill tone="outline">{cfg.model_assignment}</Pill>
+              {cfg.persona && cfg.persona !== "default" && <Pill tone="outline">persona: {cfg.persona}</Pill>}
+              {cfg.critic_backend === "adk_a2a" && <Pill tone="info" title="Rejection feedback came from a Google ADK agent over the A2A protocol">critic: ADK via A2A</Pill>}
               {cfg.variant !== "full" && <Pill tone="warn">{cfg.variant}</Pill>}
             </>
           )}
@@ -143,6 +145,16 @@ function RunView() {
           <DiffView diff={unifiedDiff(data.original_source, best.candidate.source)} />
         </Panel>
       )}
+
+      {cfg.instructions && (
+        <div className="mt-6 rounded-[7px] border border-rule bg-surface px-4 py-3 text-[13px]">
+          <span className="eyebrow mr-2">User guidance</span>
+          <span className="text-muted">{cfg.instructions}</span>
+          <Pill tone="accent" className="ml-2">screened</Pill>
+        </div>
+      )}
+
+      <FrameworkLog events={events} guardrails={data.state?.guardrail_events ?? []} />
 
       {data.state && <UsageTables state={data.state} />}
     </>
@@ -246,6 +258,54 @@ function AttemptCard({ a, isBest }: { a: Attempt; isBest: boolean }) {
         </div>
       )}
     </section>
+  );
+}
+
+function FrameworkLog({ events, guardrails }: { events: RunEvent[]; guardrails: { agent: string; attempt: number | null; stage: string; detail: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const fw = events.filter((e) => e.type === "agent_event");
+  const a2a = events.filter((e) => e.type === "step_end" && e.agent === "critic" && e.data?.a2a);
+  if (!fw.length && !guardrails.length && !a2a.length) return null;
+  return (
+    <Panel
+      className="mt-6"
+      eyebrow="Monitoring"
+      title="Guardrails, A2A and framework callbacks"
+      right={<button onClick={() => setOpen((o) => !o)} className="text-[12px] text-muted hover:text-ink">{open ? "Hide" : "Show"} {fw.length} callback events</button>}
+    >
+      <div className="flex flex-col gap-3 text-[12.5px]">
+        <div className="flex flex-wrap gap-2">
+          <Pill tone={guardrails.length ? "warn" : "accent"}>{guardrails.length} guardrail flag{guardrails.length === 1 ? "" : "s"}</Pill>
+          {a2a.length > 0 && <Pill tone="info">{a2a.length} A2A call{a2a.length === 1 ? "" : "s"} to the ADK reviewer</Pill>}
+          <Pill tone="outline">{fw.filter((e) => e.kind === "crewai_task_done").length} CrewAI task callbacks</Pill>
+          <Pill tone="outline">{fw.filter((e) => e.kind === "crewai_step").length} CrewAI step callbacks</Pill>
+        </div>
+        {guardrails.map((g, i) => (
+          <div key={i} className="rounded-[6px] border border-warn/30 bg-warn-soft px-3 py-2">
+            <span className="font-mono text-[11.5px]">{g.agent}{g.attempt ? ` · A${g.attempt}` : ""} · {g.stage}</span>
+            <div className="mt-0.5 break-words text-muted">{g.detail}</div>
+          </div>
+        ))}
+        {a2a.map((e, i) => (
+          <div key={i} className="font-mono text-[11.5px] text-muted">
+            A{e.attempt} critic → {e.data.a2a.agent ?? "reviewer"} via {e.data.a2a.transport ?? "a2a"}
+            {e.data.a2a.latency_ms ? ` · ${fmtMs(e.data.a2a.latency_ms)}` : ""}{e.data.a2a.error ? ` · error: ${e.data.a2a.error}` : ""}
+          </div>
+        ))}
+        {open && (
+          <div className="max-h-80 overflow-auto rounded-[6px] border border-rule bg-sunken p-2 font-mono text-[11px]">
+            {fw.map((e, i) => (
+              <div key={i} className="border-b border-rule/60 py-1 last:border-b-0">
+                <span className="text-faint">{new Date(e.t * 1000).toLocaleTimeString()} </span>
+                <span>{AGENT_LABEL[e.agent ?? ""] ?? e.agent}{e.attempt ? ` A${e.attempt}` : ""} </span>
+                <span className={cx(e.kind === "guardrail" ? (e.ok ? "text-accent" : "text-warn") : "text-info")}>{e.kind}{e.step_type ? `:${e.step_type}` : ""}{e.stage ? `:${e.stage}` : ""} </span>
+                <span className="text-muted">{(e.detail || e.preview || e.thought || e.tool || "").toString().slice(0, 160)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Panel>
   );
 }
 

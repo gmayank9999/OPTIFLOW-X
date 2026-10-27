@@ -23,6 +23,8 @@ const EXP_TITLE: Record<string, string> = {
   e3_prompting: "E3 · Prompting style",
   e4_models: "E4 · Model assignment",
   e5_ablations: "E5 · Ablations",
+  e6_interop: "E6 · CrewAI vs ADK over A2A (critic)",
+  e7_repeats: "E7 · Architecture, 3 repeats per cell",
   dashboard: "Ad-hoc runs from the dashboard",
 };
 

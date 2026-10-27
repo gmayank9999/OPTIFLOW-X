@@ -14,7 +14,7 @@ const PIPELINE = [
   ["transformer", "Rewrite the source"],
   ["compiler_exec", "Compile, test, ASan/UBSan"],
   ["benchmark", "Interleaved timing, Mann-Whitney"],
-  ["critic", "Rule-based accept / reject"],
+  ["critic", "Rules decide; CrewAI or ADK (A2A) explains"],
 ] as const;
 
 export default function Overview() {
