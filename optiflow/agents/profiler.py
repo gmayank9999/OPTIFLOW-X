@@ -47,19 +47,22 @@ def interpret(agent: Agent | None, report: ProfileReport, summary: ProgramSummar
         snippet = "\n".join(lines[h.start_line - 1:h.end_line])
         hot_lines.append(f"{h.time_pct:.0f}% in {h.function}() lines {h.start_line}-{h.end_line}:\n{snippet}")
 
-    sentence, usage = llm.call(
-        agent,
-        description=(
-            f"MEASURED PROFILE ({report.counters_source}): "
-            f"{json.dumps(report.model_dump(exclude={'hotspots', 'bottleneck_text'}))}\n"
-            f"HOTSPOTS:\n" + ("\n\n".join(hot_lines) or "(none)") + "\n\n"
-            f"STRUCTURE: {summary.summary_text}\n\n"
-            "In one or two sentences, state the dominant bottleneck (cache misses, "
-            "branch mispredictions, redundant work, or algorithmic complexity) and why, "
-            "citing the actual numbers and line range. Plain text only."
-        ),
-        expected_output="One or two sentences naming the bottleneck with supporting numbers.",
-    )
+    try:
+        sentence, usage = llm.call(
+            agent,
+            description=(
+                f"MEASURED PROFILE ({report.counters_source}): "
+                f"{json.dumps(report.model_dump(exclude={'hotspots', 'bottleneck_text'}))}\n"
+                f"HOTSPOTS:\n" + ("\n\n".join(hot_lines) or "(none)") + "\n\n"
+                f"STRUCTURE: {summary.summary_text}\n\n"
+                "In one or two sentences, state the dominant bottleneck (cache misses, "
+                "branch mispredictions, redundant work, or algorithmic complexity) and why, "
+                "citing the actual numbers and line range. Plain text only."
+            ),
+            expected_output="One or two sentences naming the bottleneck with supporting numbers.",
+        )
+    except llm.LLMCallError:
+        return report, TokenUsage()  # the measured numbers stand on their own
     measured = report.bottleneck_text
     report = report.model_copy(update={"bottleneck_text": f"{sentence.strip()} [measured: {measured}]"})
     return report, usage

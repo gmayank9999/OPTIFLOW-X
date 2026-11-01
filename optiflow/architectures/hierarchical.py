@@ -113,8 +113,11 @@ class Hierarchical(Architecture):
                 spent=p.budget.spent_usd, cap=self.cfg.max_usd_per_run,
                 history=p._strategist_history() or "(none)",
             )
-            text, rec["usage"] = llm.call(manager, prompt, 'JSON {"action": ..., "reason": ...}')
-            action, reason = _parse_decision(text)
+            try:
+                text, rec["usage"] = llm.call(manager, prompt, 'JSON {"action": ..., "reason": ...}')
+                action, reason = _parse_decision(text)
+            except llm.LLMCallError as exc:
+                action, reason = "invalid", f"manager call failed ({str(exc)[:80]})"
             if action not in allowed:
                 p.extra_stats["manager_fallbacks"] += 1
                 reason = f"invalid action {action!r} -> plan ({reason})"

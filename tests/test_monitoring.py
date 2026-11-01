@@ -193,3 +193,35 @@ def test_a_long_requested_wait_is_a_quota_stop_not_a_wait(monkeypatch):
     with pytest.raises(llm.QuotaExhausted):
         llm.call(FakeAgent(), "d", "e")
     assert sleeps == []
+
+
+# --- a failing model call must cost one attempt, never the whole run ---------------
+
+EMPTY_RESPONSE = "ValueError: Invalid response from LLM call - None or empty."   # real failure from a ReAct run
+
+
+def test_empty_llm_responses_are_retried_like_other_transient_errors(monkeypatch):
+    sleeps = _flaky(monkeypatch, fails=2, error=EMPTY_RESPONSE)
+    assert llm.call(FakeAgent(), "d", "e")[0] == "ok"
+    assert sleeps == [2, 4]
+
+
+def test_a_failure_that_retries_cannot_fix_becomes_a_typed_llm_error(monkeypatch):
+    sleeps = _flaky(monkeypatch, fails=10**6, error=EMPTY_RESPONSE)
+    with pytest.raises(llm.LLMCallError) as exc:
+        llm.call(FakeAgent(), "d", "e")
+    assert "None or empty" in str(exc.value) and sleeps == [2, 4, 8]
+
+
+def test_non_transient_framework_errors_are_wrapped_without_retrying(monkeypatch):
+    sleeps = _flaky(monkeypatch, fails=5, error="KeyError: 'tools'")
+    with pytest.raises(llm.LLMCallError):
+        llm.call(FakeAgent(), "d", "e")
+    assert sleeps == [] and FlakyTask.runs == 1
+
+
+def test_quota_and_guardrail_failures_are_not_swallowed_into_llm_errors(monkeypatch):
+    _flaky(monkeypatch, fails=5, error=PER_MINUTE_429.replace("41s", "72385s"))
+    with pytest.raises(llm.QuotaExhausted):
+        llm.call(FakeAgent(), "d", "e")
+    assert not issubclass(llm.QuotaExhausted, llm.LLMCallError)     # the matrix must still stop on a quota

@@ -52,11 +52,14 @@ def run(
     tries = 0
     while not build.ok and agent is not None and tries < MAX_SELF_REPAIR_TRIES:
         tries += 1
-        text, u = llm.call(
-            agent,
-            prompts.REPAIR.format(lang=lang, source=candidate.source, stderr=build.stderr[-2000:]),
-            "A single fenced code block containing the fixed file.",
-        )
+        try:
+            text, u = llm.call(
+                agent,
+                prompts.REPAIR.format(lang=lang, source=candidate.source, stderr=build.stderr[-2000:]),
+                "A single fenced code block containing the fixed file.",
+            )
+        except (llm.LLMCallError, llm.GuardrailFailed):
+            break  # no repair available: the candidate is rejected with its compile error
         usage.add(u)
         fixed = extract_code(text)
         is_safe, _ = safety_check(fixed)

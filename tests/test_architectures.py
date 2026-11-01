@@ -146,3 +146,27 @@ def test_second_attempt_is_tested_against_the_current_best(monkeypatch):
         assert cmp["vs_best_p_value"] < 0.05 and cmp["vs_best_speedup"] >= 1.02
     else:
         assert verdict["reason"] == "no_improvement"
+
+
+def test_a_failed_llm_call_rejects_one_attempt_instead_of_crashing_the_run(monkeypatch):
+    """Regression: an empty Gemini response in the Strategist raised out of the
+    pipeline and ended the whole run (and its remaining attempts)."""
+    from optiflow.core import llm as llm_mod
+
+    plans = {"n": 0}
+
+    def flaky(agent, description, expected_output, **kwargs):
+        if "OptimizationPlan" in expected_output:
+            plans["n"] += 1
+            if plans["n"] == 1:
+                raise llm_mod.LLMCallError("ValueError: Invalid response from LLM call - None or empty.")
+        return fake_call(agent, description, expected_output, **kwargs)
+
+    monkeypatch.setattr("optiflow.core.llm.call", flaky)
+    cfg = RunConfig(architecture="sequential", messaging="blackboard", max_attempts=2, bench_n=5, max_usd_per_run=1.0)
+    state = build(cfg, tools=DirectToolClient()).run(PROGRAM)
+
+    assert not state.error                                        # the run did not crash
+    assert state.history[0]["verdict"]["reason"] == "llm_error"   # one rejected attempt, with the cause
+    assert "None or empty" in state.history[0]["verdict"]["feedback_for_strategist"]
+    assert state.history[1]["verdict"]["accepted"]                # and it carried on to succeed

@@ -157,7 +157,7 @@ def explain(agent: Agent | None, verdict: Verdict, plan_summary: str, diff: str)
             expected_output="Two sentences of concrete feedback.",
             guardrail=clean_feedback,
         )
-    except llm.GuardrailFailed:
+    except (llm.GuardrailFailed, llm.LLMCallError):
         return verdict, TokenUsage()  # keep the rule-based evidence only
     return with_feedback(verdict, text), usage
 

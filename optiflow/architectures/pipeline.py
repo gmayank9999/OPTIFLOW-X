@@ -395,6 +395,8 @@ class Pipeline:
             return self.judge(attempt, plan, None, None, None, None, rejected=("plan_error", str(exc)[:500]))
         except CandidateRejected as exc:
             return self.judge(attempt, plan, candidate, None, None, None, rejected=(exc.reason, exc.detail))
+        except llm.LLMCallError as exc:
+            return self.judge(attempt, plan, candidate, build, tests, None, rejected=("llm_error", str(exc)[:500]))
         except NoMoreRules:
             return None
         except (ToolError, MissingContext) as exc:
@@ -585,7 +587,7 @@ def _log_experience(state: RunState, plan: OptimizationPlan | None, verdict: Ver
     labeled row the XGBoost dataset builder can learn from."""
     if plan is None or state.summary is None or state.variant in ("rule_only", "flags_only"):
         return
-    if verdict.reason in ("plan_error", "toolerror", "missingcontext", "no_more_strategies"):
+    if verdict.reason in ("plan_error", "llm_error", "toolerror", "missingcontext", "no_more_strategies"):
         return
     from optiflow.experiments.store import append_experience
 

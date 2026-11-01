@@ -69,7 +69,7 @@ def run(agent: Agent | None, tools: ToolClient, program_id: str) -> tuple[Progra
                 expected_output="A short structural summary, 3-5 lines, plain text.",
                 guardrail=_clean_text,
             )
-        except llm.GuardrailFailed:
+        except (llm.GuardrailFailed, llm.LLMCallError):
             summary_text = deterministic_summary(analysis)  # never pass flagged text onward
 
     return ProgramSummary(

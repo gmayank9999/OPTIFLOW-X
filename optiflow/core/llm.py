@@ -45,7 +45,9 @@ def _usage_snapshot(llm) -> tuple[int, int, int]:
 
 
 TRANSIENT_MARKERS = ("getaddrinfo", "connecterror", "connection reset", "timed out", "timeout",
-                     "temporarily unavailable", "503", "502", "429", "resource_exhausted", "unavailable")
+                     "temporarily unavailable", "503", "502", "429", "resource_exhausted", "unavailable",
+                     # Gemini now and then returns an empty candidate; a retry almost always fixes it.
+                     "invalid response from llm call", "none or empty", "empty response")
 MAX_TRIES = 4
 
 
@@ -98,6 +100,13 @@ def _is_transient(exc: Exception) -> bool:
 
 # CrewAI raises a plain Exception("Task failed <name> validation after N retries...").
 _GUARDRAIL_EXHAUSTED = re.compile(r"Task failed .{0,80}validation after \d+ retr", re.I)
+
+
+class LLMCallError(RuntimeError):
+    """A model call failed for a reason outside our control (provider error,
+    empty or malformed response, framework error) and retries did not help.
+    Callers turn this into a rejected attempt or a graceful fallback; it must
+    never take a whole run (and its remaining attempts) down."""
 
 
 class GuardrailFailed(RuntimeError):
@@ -216,7 +225,7 @@ def call(agent: Agent, description: str, expected_output: str,
             attempt += 1
             if attempt >= MAX_TRIES or not _is_transient(exc):
                 _emit("llm_error", error=f"{type(exc).__name__}: {str(exc)[:300]}")
-                raise
+                raise LLMCallError(f"{type(exc).__name__}: {str(exc)[:500]}") from exc
             _emit("llm_retry", attempt=attempt, error=f"{type(exc).__name__}: {str(exc)[:200]}")
             time.sleep(2 ** attempt)  # 2, 4, 8 s
     after = _usage_snapshot(agent.llm)
