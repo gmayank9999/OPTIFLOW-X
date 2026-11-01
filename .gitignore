@@ -50,3 +50,6 @@ Thumbs.db
 
 # Docker build context leftovers
 *.log
+
+# Experiment-run lock (see optiflow/experiments/run_all.py)
+results/.run_all.lock
