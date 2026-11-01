@@ -136,6 +136,11 @@ dashboard's Predictor page shows which strategies earned a model.
 ## Experiments
 
 ```bash
+# All remaining LLM experiments, most important first; resumable. A daily LLM
+# quota stops it cleanly (exit code 3): run it again later to continue.
+python -m optiflow.experiments.run_all            # add --dry-run to list the cells first
+
+# Or one config at a time:
 python -m optiflow.experiments.run_matrix optiflow/experiments/configs/e0_baselines.yaml
 python -m optiflow.experiments.run_matrix optiflow/experiments/configs/e1_architecture.yaml --programs matmul_naive lcs
 python -m optiflow.experiments.analyze_results          # results/analysis.json + figures
