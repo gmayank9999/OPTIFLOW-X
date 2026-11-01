@@ -111,10 +111,16 @@ Machine: Intel i7-1185G7 laptop, Windows 11, Docker Desktop on WSL2
   it stopped: `python -m optiflow.experiments.run_all`. On a free tier the
   remaining experiments take roughly 1-2 weeks at ~25 runs/day; enabling
   billing finishes them in a few hours for about $1 at the measured cost per
-  run. **Experiment status: E0 (100 runs), E1 (30), E6 (20) done. E3, E2, E5,
-  E7 are in progress or not started. E4 (local / mixed models) is not run:
-  it needs a 7B local model, which would swap on this 15 GB laptop and
-  distort timings, and an OpenAI key.**
+  run. **Experiment status (1 Nov 2026, 08:50): E0 (100 runs), E1 (30) and
+  E6 (20) are done. E3 is 14 of 70 cells done (the 10 structured-prompt
+  baseline cells and 4 ReAct cells); the second key's 500-request daily quota
+  then ran out and the runner stopped cleanly. E2, E5 and E7 have not
+  started. Total LLM spend so far: $0.195. To continue: wait for the quota
+  to reset (or enable billing), then run
+  `python -m optiflow.experiments.run_all`. E4 (local / mixed models) is
+  not run: it needs a 7B local model, which would swap on this 15 GB laptop
+  and distort timings, and an OpenAI key.** The E3 comparison is not
+  reported yet because most of its cells do not exist.
 - **Very fast candidates make speedup ratios imprecise (acceptance logic
   fixed, ratios still imprecise).** A live bubble_sort run went 189x then
   234x (adding -flto). Those candidates run in about 5 ms with 31-34%

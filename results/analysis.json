@@ -1,8 +1,8 @@
 {
-  "runs": 159,
+  "runs": 170,
   "programs": 50,
-  "overall_geomean_speedup": 3.61246602390041,
-  "total_cost_usd": 0.150873,
+  "overall_geomean_speedup": 3.7675321605466783,
+  "total_cost_usd": 0.183404,
   "experiments": {
     "cli": {
       "runs": 1,
@@ -257,6 +257,71 @@
         }
       }
     },
+    "e3_prompting": {
+      "runs": 11,
+      "varied": [
+        "prompt_style"
+      ],
+      "summaries": {
+        "prompt_style": [
+          {
+            "prompt_style": "react",
+            "runs": 1,
+            "programs": 1,
+            "geomean_speedup": 5.955000000000001,
+            "median_speedup": 5.955,
+            "success_rate": 1.0,
+            "success_ci": [
+              0.20654329147389294,
+              1.0
+            ],
+            "mean_cost_usd": 0.005396,
+            "p95_cost_usd": 0.005396,
+            "mean_latency_s": 84.97,
+            "median_latency_s": 84.97,
+            "p95_latency_s": 84.97,
+            "mean_tokens": 44868.0,
+            "mean_attempts": 5.0,
+            "mean_messages": 26.0,
+            "mean_deliveries": 26.0,
+            "mean_message_bytes": 22205.0
+          },
+          {
+            "prompt_style": "structured",
+            "runs": 10,
+            "programs": 10,
+            "geomean_speedup": 7.021021814548471,
+            "median_speedup": 2.6812,
+            "success_rate": 0.8,
+            "success_ci": [
+              0.49015684672072335,
+              0.9433190520193067
+            ],
+            "mean_cost_usd": 0.0027134999999999998,
+            "p95_cost_usd": 0.00352755,
+            "mean_latency_s": 81.518,
+            "median_latency_s": 81.39,
+            "p95_latency_s": 141.06349999999998,
+            "mean_tokens": 19691.6,
+            "mean_attempts": 4.2,
+            "mean_messages": 24.3,
+            "mean_deliveries": 24.3,
+            "mean_message_bytes": 21520.1
+          }
+        ]
+      },
+      "tests": {
+        "prompt_style": {
+          "factor": "prompt_style",
+          "levels": [
+            "react",
+            "structured"
+          ],
+          "paired_programs": 1,
+          "note": "need >= 2 levels measured on >= 5 common programs"
+        }
+      }
+    },
     "e6_interop": {
       "runs": 20,
       "varied": [
@@ -366,157 +431,157 @@
   "by_category": [
     {
       "category": "data_layout",
-      "runs": 11,
+      "runs": 12,
       "programs": 3,
-      "geomean_speedup": 5.014201734869247,
-      "median_speedup": 4.7318,
-      "success_rate": 0.8181818181818182,
+      "geomean_speedup": 4.997196279245273,
+      "median_speedup": 4.77285,
+      "success_rate": 0.8333333333333334,
       "success_ci": [
-        0.5230138624217553,
-        0.9486333993289995
+        0.5519636426153274,
+        0.9530358523851776
       ],
-      "mean_cost_usd": 0.001699090909090909,
-      "p95_cost_usd": 0.004142,
-      "mean_latency_s": 87.31545454545454,
-      "median_latency_s": 62.41,
-      "p95_latency_s": 163.23,
-      "mean_tokens": 11488.545454545454,
-      "mean_attempts": 2.8181818181818183,
-      "mean_messages": 18.636363636363637,
-      "mean_deliveries": 18.636363636363637,
-      "mean_message_bytes": 17246.18181818182
+      "mean_cost_usd": 0.0018537499999999997,
+      "p95_cost_usd": 0.0041332999999999995,
+      "mean_latency_s": 87.63916666666667,
+      "median_latency_s": 76.805,
+      "p95_latency_s": 159.29899999999995,
+      "mean_tokens": 12500.166666666666,
+      "mean_attempts": 2.9166666666666665,
+      "mean_messages": 19.25,
+      "mean_deliveries": 19.25,
+      "mean_message_bytes": 18347.583333333332
     },
     {
       "category": "dp",
-      "runs": 27,
+      "runs": 29,
       "programs": 8,
-      "geomean_speedup": 10.712145154209825,
+      "geomean_speedup": 11.701350563803178,
       "median_speedup": 1.5774,
-      "success_rate": 0.6666666666666666,
+      "success_rate": 0.6551724137931034,
       "success_ci": [
-        0.47824419872105484,
-        0.8135694555640665
+        0.47344776507155983,
+        0.8005949125080951
       ],
-      "mean_cost_usd": 0.0009076296296296296,
-      "p95_cost_usd": 0.0036116999999999994,
-      "mean_latency_s": 58.65592592592593,
+      "mean_cost_usd": 0.0009746206896551724,
+      "p95_cost_usd": 0.0035405999999999983,
+      "mean_latency_s": 58.28068965517241,
       "median_latency_s": 43.87,
-      "p95_latency_s": 123.201,
-      "mean_tokens": 6606.777777777777,
-      "mean_attempts": 2.259259259259259,
-      "mean_messages": 14.11111111111111,
-      "mean_deliveries": 14.11111111111111,
-      "mean_message_bytes": 10493.814814814816
+      "p95_latency_s": 121.70799999999997,
+      "mean_tokens": 7139.517241379311,
+      "mean_attempts": 2.3448275862068964,
+      "mean_messages": 14.413793103448276,
+      "mean_deliveries": 14.413793103448276,
+      "mean_message_bytes": 10667.103448275862
     },
     {
       "category": "graph",
-      "runs": 21,
+      "runs": 22,
       "programs": 8,
-      "geomean_speedup": 1.101034902612012,
+      "geomean_speedup": 1.154488994603758,
       "median_speedup": 1.0,
-      "success_rate": 0.42857142857142855,
+      "success_rate": 0.45454545454545453,
       "success_ci": [
-        0.24469699486521043,
-        0.6345378370296754
+        0.26920014432004846,
+        0.6534052671095845
       ],
-      "mean_cost_usd": 0.0006745714285714285,
-      "p95_cost_usd": 0.002922,
-      "mean_latency_s": 50.0795238095238,
-      "median_latency_s": 33.71,
-      "p95_latency_s": 119.04,
-      "mean_tokens": 4925.714285714285,
-      "mean_attempts": 1.7619047619047619,
-      "mean_messages": 12.0,
-      "mean_deliveries": 12.0,
-      "mean_message_bytes": 9906.142857142857
+      "mean_cost_usd": 0.0007874999999999999,
+      "p95_cost_usd": 0.00309205,
+      "mean_latency_s": 54.53772727272727,
+      "median_latency_s": 35.485,
+      "p95_latency_s": 146.70399999999998,
+      "mean_tokens": 5757.045454545455,
+      "mean_attempts": 1.9090909090909092,
+      "mean_messages": 12.818181818181818,
+      "mean_deliveries": 12.818181818181818,
+      "mean_message_bytes": 10661.227272727272
     },
     {
       "category": "matrix",
-      "runs": 31,
+      "runs": 34,
       "programs": 10,
-      "geomean_speedup": 2.210355147998658,
-      "median_speedup": 1.851,
-      "success_rate": 0.8064516129032258,
+      "geomean_speedup": 2.349598520792865,
+      "median_speedup": 1.863,
+      "success_rate": 0.8235294117647058,
       "success_ci": [
-        0.6371939644454013,
-        0.9081311641365236
+        0.6648593225994784,
+        0.9165114439643031
       ],
-      "mean_cost_usd": 0.0011695161290322582,
-      "p95_cost_usd": 0.003758,
-      "mean_latency_s": 91.16,
-      "median_latency_s": 66.42,
-      "p95_latency_s": 203.625,
-      "mean_tokens": 8306.774193548386,
-      "mean_attempts": 2.5161290322580645,
-      "mean_messages": 17.06451612903226,
-      "mean_deliveries": 17.06451612903226,
-      "mean_message_bytes": 14247.225806451614
+      "mean_cost_usd": 0.0014278823529411764,
+      "p95_cost_usd": 0.004120099999999999,
+      "mean_latency_s": 93.16235294117645,
+      "median_latency_s": 70.96000000000001,
+      "p95_latency_s": 197.7164999999999,
+      "mean_tokens": 10343.0,
+      "mean_attempts": 2.735294117647059,
+      "mean_messages": 18.205882352941178,
+      "mean_deliveries": 18.205882352941178,
+      "mean_message_bytes": 15446.0
     },
     {
       "category": "sorting",
-      "runs": 27,
+      "runs": 28,
       "programs": 8,
-      "geomean_speedup": 16.419484262177804,
-      "median_speedup": 36.2095,
-      "success_rate": 0.6666666666666666,
+      "geomean_speedup": 18.028534977655454,
+      "median_speedup": 41.1837,
+      "success_rate": 0.6785714285714286,
       "success_ci": [
-        0.47824419872105484,
-        0.8135694555640665
+        0.4933850455563118,
+        0.8206695245657927
       ],
-      "mean_cost_usd": 0.00043644444444444443,
-      "p95_cost_usd": 0.0025197,
-      "mean_latency_s": 340.892962962963,
-      "median_latency_s": 41.63,
-      "p95_latency_s": 77.87899999999999,
-      "mean_tokens": 3353.259259259259,
-      "mean_attempts": 2.0,
-      "mean_messages": 12.518518518518519,
-      "mean_deliveries": 12.518518518518519,
-      "mean_message_bytes": 8641.74074074074
+      "mean_cost_usd": 0.0005068928571428571,
+      "p95_cost_usd": 0.00251315,
+      "mean_latency_s": 330.36428571428576,
+      "median_latency_s": 41.635000000000005,
+      "p95_latency_s": 77.38049999999998,
+      "mean_tokens": 3903.3571428571427,
+      "mean_attempts": 2.0714285714285716,
+      "mean_messages": 12.785714285714286,
+      "mean_deliveries": 12.785714285714286,
+      "mean_message_bytes": 8831.5
     },
     {
       "category": "stencil",
-      "runs": 26,
+      "runs": 28,
       "programs": 8,
-      "geomean_speedup": 1.3518887778506419,
+      "geomean_speedup": 1.3617071974866262,
       "median_speedup": 1.1359,
-      "success_rate": 0.5769230769230769,
+      "success_rate": 0.5714285714285714,
       "success_ci": [
-        0.3894829692111983,
-        0.744558100972706
+        0.390704789856154,
+        0.7349170381926877
       ],
-      "mean_cost_usd": 0.0011005769230769229,
-      "p95_cost_usd": 0.0038587499999999998,
-      "mean_latency_s": 65.71730769230768,
-      "median_latency_s": 42.095,
-      "p95_latency_s": 172.2875,
-      "mean_tokens": 7686.192307692308,
-      "mean_attempts": 2.1538461538461537,
-      "mean_messages": 14.192307692307692,
-      "mean_deliveries": 14.192307692307692,
-      "mean_message_bytes": 11521.846153846154
+      "mean_cost_usd": 0.0011861071428571428,
+      "p95_cost_usd": 0.00385385,
+      "mean_latency_s": 63.44499999999999,
+      "median_latency_s": 40.885000000000005,
+      "p95_latency_s": 172.0665,
+      "mean_tokens": 8302.107142857143,
+      "mean_attempts": 2.25,
+      "mean_messages": 14.392857142857142,
+      "mean_deliveries": 14.392857142857142,
+      "mean_message_bytes": 11680.857142857143
     },
     {
       "category": "string",
-      "runs": 16,
+      "runs": 17,
       "programs": 5,
-      "geomean_speedup": 2.1772701678245103,
-      "median_speedup": 1.2664499999999999,
-      "success_rate": 0.625,
+      "geomean_speedup": 2.1520608325362534,
+      "median_speedup": 1.268,
+      "success_rate": 0.6470588235294118,
       "success_ci": [
-        0.3864064709793481,
-        0.815190174452472
+        0.4129996672121182,
+        0.826905138560951
       ],
-      "mean_cost_usd": 0.0010535625,
-      "p95_cost_usd": 0.0033557500000000002,
-      "mean_latency_s": 47.860625,
-      "median_latency_s": 46.195,
-      "p95_latency_s": 107.28999999999999,
-      "mean_tokens": 7282.75,
-      "mean_attempts": 2.5,
-      "mean_messages": 16.125,
-      "mean_deliveries": 16.125,
-      "mean_message_bytes": 13725.0625
+      "mean_cost_usd": 0.001154,
+      "p95_cost_usd": 0.0032709999999999987,
+      "mean_latency_s": 50.862941176470585,
+      "median_latency_s": 50.57,
+      "p95_latency_s": 109.84199999999997,
+      "mean_tokens": 8075.058823529412,
+      "mean_attempts": 2.6470588235294117,
+      "mean_messages": 17.058823529411764,
+      "mean_deliveries": 17.058823529411764,
+      "mean_message_bytes": 14650.70588235294
     }
   ],
   "pareto": [
@@ -545,19 +610,19 @@
       "pareto": true
     },
     {
+      "config": "sequential / blackboard / structured / default / crewai / single-cloud / full",
+      "success_rate": 0.8709677419354839,
+      "mean_cost_usd": 0.0028105161290322574,
+      "runs": 31,
+      "geomean_speedup": 7.744517077778522,
+      "pareto": false
+    },
+    {
       "config": "hierarchical / blackboard / structured / default / crewai / single-cloud / full",
       "success_rate": 0.8,
       "mean_cost_usd": 0.0028159,
       "runs": 10,
       "geomean_speedup": 6.242688916775446,
-      "pareto": false
-    },
-    {
-      "config": "sequential / blackboard / structured / default / crewai / single-cloud / full",
-      "success_rate": 0.9047619047619048,
-      "mean_cost_usd": 0.0028567142857142853,
-      "runs": 21,
-      "geomean_speedup": 8.114788557811595,
       "pareto": false
     },
     {
@@ -574,6 +639,14 @@
       "mean_cost_usd": 0.0030385000000000004,
       "runs": 10,
       "geomean_speedup": 6.038367175925646,
+      "pareto": false
+    },
+    {
+      "config": "sequential / blackboard / react / default / crewai / single-cloud / full",
+      "success_rate": 1.0,
+      "mean_cost_usd": 0.005396,
+      "runs": 1,
+      "geomean_speedup": 5.955000000000001,
       "pareto": false
     }
   ],
@@ -616,7 +689,7 @@
       "best_agent": 246.2224,
       "best_agent_strategy": "algorithmic",
       "best_agent_run": "312fb79d14134e4887f29d9a1caf1de1",
-      "runs": 13
+      "runs": 14
     },
     {
       "program_id": "coin_change",
@@ -706,7 +779,7 @@
       "best_agent": 1491.2825,
       "best_agent_strategy": "algorithmic",
       "best_agent_run": "3abd35881a4744f2946d29f3b11072ee",
-      "runs": 8
+      "runs": 9
     },
     {
       "program_id": "floyd_warshall",
@@ -716,7 +789,7 @@
       "best_agent": 3.1518,
       "best_agent_strategy": "hoist",
       "best_agent_run": "5f22e8026cb940f3bb8c1c22af2844fa",
-      "runs": 7
+      "runs": 8
     },
     {
       "program_id": "frobenius_colwise",
@@ -786,7 +859,7 @@
       "best_agent": 2.5264,
       "best_agent_strategy": "algorithmic",
       "best_agent_run": "e76788d5059343b98871aeb922e0418d",
-      "runs": 7
+      "runs": 8
     },
     {
       "program_id": "knapsack01",
@@ -806,7 +879,7 @@
       "best_agent": 3.7126,
       "best_agent_strategy": "vectorize",
       "best_agent_run": "8ba6707db35a4709b314daa361c8d23e",
-      "runs": 7
+      "runs": 8
     },
     {
       "program_id": "linear_search_many",
@@ -856,7 +929,7 @@
       "best_agent": 1.0,
       "best_agent_strategy": null,
       "best_agent_run": "87f1e4e04cba4015a58082a105ba6abf",
-      "runs": 7
+      "runs": 8
     },
     {
       "program_id": "matmul_naive",
@@ -866,7 +939,7 @@
       "best_agent": 8.2787,
       "best_agent_strategy": "tiling",
       "best_agent_run": "f3734a75e0f04a55a4ea6e9fff697fe0",
-      "runs": 8
+      "runs": 10
     },
     {
       "program_id": "matrix_chain",
@@ -956,7 +1029,7 @@
       "best_agent": 55.2739,
       "best_agent_strategy": "unroll",
       "best_agent_run": "91eb46b0bced4e0d83804b5526c242b5",
-      "runs": 7
+      "runs": 8
     },
     {
       "program_id": "quicksort_bad_pivot",
@@ -1026,7 +1099,7 @@
       "best_agent": 1.9933,
       "best_agent_strategy": "algorithmic",
       "best_agent_run": "2a7f5290309147f5aa5d5b2363788c0a",
-      "runs": 8
+      "runs": 9
     },
     {
       "program_id": "syrk",
@@ -1046,7 +1119,7 @@
       "best_agent": 2.0446,
       "best_agent_strategy": "flags",
       "best_agent_run": "0709225665994fed8f3023cb6c4bc80c",
-      "runs": 7
+      "runs": 8
     },
     {
       "program_id": "trapezoid_integration",
