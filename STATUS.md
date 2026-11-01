@@ -96,14 +96,18 @@ Machine: Intel i7-1185G7 laptop, Windows 11, Docker Desktop on WSL2
   and E1 (30 runs) done; E6 has 4 CrewAI runs and no ADK-over-A2A runs, so
   the CrewAI-vs-ADK comparison is unmeasured; E2, E3, E4, E5, E7 have no
   runs.**
-- **Very fast candidates make speedup ratios unreliable.** A live
-  bubble_sort run went 189x then 234x (adding -flto). Those candidates run
-  in about 5 ms with 31-34% run-to-run variation, where process startup
-  dominates, so the 189x -> 234x "improvement" is within noise. The Critic
-  tests every candidate against the baseline statistically but only
-  compares a candidate to the current best by point estimate (> 2%). Treat
-  ratios above ~100x as "much faster", not as precise numbers. A fix
-  (test candidate vs current best, or a minimum runtime) is not yet made.
+- **Very fast candidates make speedup ratios imprecise (acceptance logic
+  fixed, ratios still imprecise).** A live bubble_sort run went 189x then
+  234x (adding -flto). Those candidates run in about 5 ms with 31-34%
+  run-to-run variation, where process startup dominates, so the
+  189x -> 234x "improvement" was within noise. The Critic used to compare a
+  candidate with the current best only by point estimate. Now the current
+  best is timed in the same interleaved session as each new candidate and
+  "better than the best so far" must be significant (Mann-Whitney p < 0.05
+  and >= 1.02x). Runs from E0 and E1 predate this rule; E6 onward use it.
+  Candidates under 20 ms or with CV > 25% are flagged "low timing
+  precision" in the dashboard: treat ratios above ~100x as "much faster",
+  not as precise numbers.
 - **Cloud:** everything is ready (`deploy/README.md`) but deploying needs
   a GCP account with billing and the commits pushed to GitHub.
 

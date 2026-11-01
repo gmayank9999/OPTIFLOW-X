@@ -123,6 +123,15 @@ class CompareResult(BaseModel):
     cpu_speedup: float = 0.0
     baseline: Optional[BenchResult] = None
     candidate: Optional[BenchResult] = None
+    # The current best candidate, timed in the *same* interleaved session.
+    # A candidate that clears the baseline test can still be no better than
+    # the best so far; with ms-scale runtimes the difference between two
+    # fast candidates is easily just noise, so it gets its own test.
+    reference: Optional[BenchResult] = None
+    vs_best_speedup: Optional[float] = None
+    vs_best_p_value: Optional[float] = None
+    # Candidate so fast / so noisy that the ratio is not a precise number.
+    low_precision: bool = False
 
 
 class Verdict(BaseModel):

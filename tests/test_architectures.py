@@ -117,3 +117,32 @@ def test_unparseable_plan_becomes_a_rejected_attempt(monkeypatch):
     state = build(cfg, tools=DirectToolClient()).run(PROGRAM)
     assert state.history[0]["verdict"]["reason"] == "plan_error"
     assert not state.error
+
+
+def test_second_attempt_is_tested_against_the_current_best(monkeypatch):
+    """The reference (current best) is timed in the same session as the new
+    candidate, and the verdict follows the rule applied to that evidence.
+    The stub's second rewrite is textually different but equally fast."""
+    transforms = {"n": 0}
+
+    def variant(agent, description, expected_output, **kwargs):
+        text, usage = fake_call(agent, description, expected_output, **kwargs)
+        if "APPLY THESE TRANSFORMATIONS" in description:
+            transforms["n"] += 1
+            if transforms["n"] == 2:
+                text = text.replace("int main(void) {", "/* equivalent */\nint main(void) {", 1)
+        return text, usage
+
+    monkeypatch.setattr("optiflow.core.llm.call", variant)
+    cfg = RunConfig(architecture="sequential", messaging="blackboard", max_attempts=2, bench_n=10, max_usd_per_run=1.0)
+    state = build(cfg, tools=DirectToolClient()).run(PROGRAM)
+
+    assert state.history[0]["verdict"]["accepted"]
+    second = state.history[1]
+    cmp = second["compare"]
+    assert cmp is not None and cmp["vs_best_p_value"] is not None   # reference timed in-session
+    verdict = second["verdict"]
+    if verdict["accepted"]:      # allowed only if it is demonstrably better
+        assert cmp["vs_best_p_value"] < 0.05 and cmp["vs_best_speedup"] >= 1.02
+    else:
+        assert verdict["reason"] == "no_improvement"

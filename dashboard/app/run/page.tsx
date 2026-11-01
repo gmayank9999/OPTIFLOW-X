@@ -243,6 +243,16 @@ function AttemptCard({ a, isBest }: { a: Attempt; isBest: boolean }) {
                 <span>base {fmtMs(a.compare.baseline.median_ms)} (cv {fmtPct(a.compare.baseline.cv)})</span>
                 <span>cand {fmtMs(a.compare.candidate.median_ms)} (cv {fmtPct(a.compare.candidate.cv)})</span>
                 <span>cpu {fmtSpeedup(a.compare.cpu_speedup)}</span>
+                {a.compare.vs_best_p_value != null && (
+                  <span title="the current best, timed in the same session and tested against this candidate">
+                    vs best {fmtSpeedup(a.compare.vs_best_speedup, 3)} (p={a.compare.vs_best_p_value.toFixed(3)})
+                  </span>
+                )}
+                {a.compare.low_precision && (
+                  <Pill tone="warn" title="Candidate runs in under 20 ms or varies by more than 25% between runs: the ratio is not a precise number">
+                    low timing precision
+                  </Pill>
+                )}
                 <span>n={a.compare.candidate.runtimes_ms.length}</span>
               </div>
             </div>

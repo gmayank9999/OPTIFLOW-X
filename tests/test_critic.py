@@ -99,3 +99,36 @@ def test_cost_cap_stops_the_run():
 def test_does_not_stop_when_improvement_is_substantial():
     verdict = decide(OK_BUILD, OK_TESTS, cmp(3.9), make_budget(max_attempts=10))
     assert verdict.stop is False
+
+
+# --- "better than the best so far" is a statistical claim too -----------------
+
+def cmp_vs_best(speedup, vs_best, vs_p, p=0.001):
+    return CompareResult(speedup=speedup, p_value=p, accepted_by_rule=True,
+                         vs_best_speedup=vs_best, vs_best_p_value=vs_p)
+
+
+def test_beating_the_baseline_but_not_the_best_in_the_same_session_is_rejected():
+    verdict = decide(OK_BUILD, OK_TESTS, cmp_vs_best(234.0, vs_best=1.02, vs_p=0.31), make_budget(),
+                     current_best_speedup=189.0)
+    assert not verdict.accepted and verdict.reason == "no_improvement"
+    assert "same session" in verdict.feedback_for_strategist and "0.310" in verdict.feedback_for_strategist
+
+
+def test_a_significant_gain_over_the_best_is_accepted_and_drives_the_stop_rule():
+    verdict = decide(OK_BUILD, OK_TESTS, cmp_vs_best(300.0, vs_best=1.5, vs_p=0.001), make_budget(),
+                     current_best_speedup=200.0)
+    assert verdict.accepted and verdict.speedup == 300.0
+    assert "+50.0%" in verdict.feedback_for_strategist      # measured vs best, not 300/200
+
+
+def test_significant_but_tiny_gain_over_the_best_is_not_enough():
+    verdict = decide(OK_BUILD, OK_TESTS, cmp_vs_best(210.0, vs_best=1.005, vs_p=0.001), make_budget(),
+                     current_best_speedup=200.0)
+    assert verdict.reason == "no_improvement"
+
+
+def test_first_accepted_candidate_needs_no_best_comparison():
+    verdict = decide(OK_BUILD, OK_TESTS, cmp_vs_best(5.0, vs_best=5.0, vs_p=0.0001), make_budget(),
+                     current_best_speedup=1.0)
+    assert verdict.accepted

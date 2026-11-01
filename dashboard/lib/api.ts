@@ -244,7 +244,16 @@ export type Attempt = {
   candidate: { source: string; flags: string[]; diff: string; repaired: number } | null;
   build: { ok: boolean; stderr: string; flags: string[]; dropped_flags: string[] } | null;
   tests: { all_pass: boolean; failed_cases: string[]; details: Record<string, any>; sanitizer_ok: boolean | null; sanitizer_report: string } | null;
-  compare: { speedup: number; p_value: number; cpu_speedup: number; baseline: BenchResult | null; candidate: BenchResult | null } | null;
+  compare: {
+    speedup: number;
+    p_value: number;
+    cpu_speedup: number;
+    baseline: BenchResult | null;
+    candidate: BenchResult | null;
+    vs_best_speedup?: number | null;
+    vs_best_p_value?: number | null;
+    low_precision?: boolean;
+  } | null;
   verdict: Verdict;
 };
 

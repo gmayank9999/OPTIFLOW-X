@@ -308,12 +308,18 @@ class Pipeline:
         if not build.ok or tests is None or not tests.get("all_pass") or tests.get("attempt") != attempt:
             return None
         with self.step("benchmark", attempt=attempt) as rec:
-            result = benchmark.run(_TracedTools(self), build.candidate_id, self.state.program_id, self.cfg.bench_n)
+            result = benchmark.run(_TracedTools(self), build.candidate_id, self.state.program_id, self.cfg.bench_n,
+                                   reference_id=self.state.best.get("candidate_id"))
+            vs_best = (f", {result.vs_best_speedup:.2f}x vs best (p={result.vs_best_p_value:.3f})"
+                       if result.vs_best_p_value is not None else "")
             rec["summary"] = (f"{result.speedup:.2f}x wall, {result.cpu_speedup:.2f}x cpu, p={result.p_value:.4f}"
-                              f" ({result.candidate.median_ms:.1f} vs {result.baseline.median_ms:.1f} ms)"
+                              f"{vs_best} ({result.candidate.median_ms:.1f} vs {result.baseline.median_ms:.1f} ms)"
+                              f"{' [low precision]' if result.low_precision else ''}"
                               if result.candidate and result.baseline else "no measurement")
             rec["data"] = {
                 "speedup": result.speedup, "cpu_speedup": result.cpu_speedup, "p_value": result.p_value,
+                "vs_best_speedup": result.vs_best_speedup, "vs_best_p_value": result.vs_best_p_value,
+                "low_precision": result.low_precision,
                 "baseline": result.baseline.model_dump() if result.baseline else None,
                 "candidate": result.candidate.model_dump() if result.candidate else None,
             }
@@ -355,6 +361,7 @@ class Pipeline:
         if verdict.accepted and candidate is not None:
             self.state.best = {
                 "candidate": candidate.model_dump(), "speedup": verdict.speedup, "attempt": attempt,
+                "candidate_id": build.candidate_id if build else None,  # reference for the next attempt's test
                 "compare": compare.model_dump() if compare else None,
                 "strategies": [s.name for s in plan.strategies] if plan else [],
             }

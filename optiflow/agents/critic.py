@@ -75,17 +75,34 @@ def decide(
         )
         return _reject("no_significant_gain", reason, budget)
 
-    if compare.speedup <= current_best_speedup * MIN_IMPROVEMENT:
-        return _reject(
-            "no_improvement",
-            f"{compare.speedup:.2f}x does not beat the current best {current_best_speedup:.2f}x "
-            f"by more than {(MIN_IMPROVEMENT - 1) * 100:.0f}%",
-            budget,
-        )
+    measured_vs_best = compare.vs_best_p_value is not None and compare.vs_best_speedup is not None
+    if current_best_speedup > 1.0:
+        if measured_vs_best:
+            # The current best was timed in the same session: "better than
+            # the best so far" must itself be statistically significant,
+            # not just a larger ratio from a different measurement.
+            if compare.vs_best_speedup < MIN_IMPROVEMENT or compare.vs_best_p_value >= P_VALUE_THRESHOLD:
+                return _reject(
+                    "no_improvement",
+                    f"{compare.speedup:.2f}x vs baseline, but only {compare.vs_best_speedup:.3f}x vs the current "
+                    f"best ({current_best_speedup:.2f}x) in the same session, p={compare.vs_best_p_value:.3f} "
+                    f"(need >= {MIN_IMPROVEMENT}x and p < {P_VALUE_THRESHOLD})",
+                    budget,
+                )
+        elif compare.speedup <= current_best_speedup * MIN_IMPROVEMENT:
+            return _reject(
+                "no_improvement",
+                f"{compare.speedup:.2f}x does not beat the current best {current_best_speedup:.2f}x "
+                f"by more than {(MIN_IMPROVEMENT - 1) * 100:.0f}%",
+                budget,
+            )
 
     # Gain relative to the best candidate so far: this is what the
     # "diminishing returns" stop rule tracks.
-    improvement_pct = (compare.speedup - current_best_speedup) / current_best_speedup * 100
+    if measured_vs_best and current_best_speedup > 1.0:
+        improvement_pct = (compare.vs_best_speedup - 1.0) * 100
+    else:
+        improvement_pct = (compare.speedup - current_best_speedup) / current_best_speedup * 100
     budget.record_attempt(True, improvement_pct)
     stop_reason = budget.stop_reason()
     return Verdict(

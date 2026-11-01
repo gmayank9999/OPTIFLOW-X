@@ -31,6 +31,8 @@ MIN_SPEEDUP = 1.05
 P_VALUE_THRESHOLD = 0.05
 DEFAULT_RUNS = 10
 DEFAULT_WARMUP = 2
+LOW_PRECISION_MS = 20.0     # below this, process start-up dominates the measurement
+LOW_PRECISION_CV = 0.25     # above this, medians of 10-30 runs are not a precise ratio
 MAX_ADAPTIVE_RUNS = 30
 ADAPTIVE_BUDGET_MS = 8000  # target time spent on timed baseline runs per comparison
 STABILITY_PATH = pathlib.Path("results/stability.json")
@@ -152,13 +154,17 @@ def adaptive_runs(program_id: str) -> int:
     return max(DEFAULT_RUNS, min(MAX_ADAPTIVE_RUNS, int(ADAPTIVE_BUDGET_MS / median)))
 
 
-def compare(candidate_id: str, program_id: str, n: int | None = None, warmup: int = DEFAULT_WARMUP) -> CompareResult:
-    """Interleaved baseline-vs-candidate measurement in one container."""
-    return compare_many([candidate_id], program_id, n=n, warmup=warmup)[0]
+def compare(candidate_id: str, program_id: str, n: int | None = None, warmup: int = DEFAULT_WARMUP,
+            reference_id: str | None = None) -> CompareResult:
+    """Interleaved baseline-vs-candidate measurement in one container.
+    With `reference_id` (the current best candidate) the reference is timed
+    in the same session too, so "better than the best so far" is a
+    statistical statement rather than a comparison of two point estimates."""
+    return compare_many([candidate_id], program_id, n=n, warmup=warmup, reference_id=reference_id)[0]
 
 
 def compare_many(candidate_ids: list[str], program_id: str, n: int | None = None,
-                 warmup: int = DEFAULT_WARMUP) -> list[CompareResult]:
+                 warmup: int = DEFAULT_WARMUP, reference_id: str | None = None) -> list[CompareResult]:
     """Baseline and every candidate interleaved round by round in one
     container (B C1 C2 ... B C1 C2 ...), so all of them see the same
     machine state. Candidates are copied into the first one's workdir."""
@@ -170,15 +176,26 @@ def compare_many(candidate_ids: list[str], program_id: str, n: int | None = None
     for i, cid in enumerate(candidate_ids[1:], start=1):
         shutil.copy(pathlib.Path(get_candidate_dir(cid), "prog"), pathlib.Path(workdir, f"cand{i}"))
         names.append(f"cand{i}")
+    has_reference = False
+    if reference_id:
+        try:
+            shutil.copy(pathlib.Path(get_candidate_dir(reference_id), "prog"), pathlib.Path(workdir, "ref_prog"))
+            names.append("ref_prog")
+            has_reference = True
+        except (KeyError, OSError):
+            pass  # evicted or gone: fall back to comparing point estimates
     input_name = _stage_input(workdir, program_id)
     timeout_s = load_meta(program_id).get("timeout_s", 20)
 
     samples = _run_harness(workdir, names, input_name, n, warmup, timeout_s)
     baseline = summarize(samples[0])
-    return [compare_results(baseline, summarize(s)) for s in samples[1:]]
+    reference = summarize(samples[-1]) if has_reference else None
+    cand_samples = samples[1:-1] if has_reference else samples[1:]
+    return [compare_results(baseline, summarize(s), reference) for s in cand_samples]
 
 
-def compare_results(baseline: BenchResult, candidate: BenchResult) -> CompareResult:
+def compare_results(baseline: BenchResult, candidate: BenchResult,
+                    reference: BenchResult | None = None) -> CompareResult:
     if not candidate.runtimes_ms or not baseline.runtimes_ms or candidate.failed_runs:
         return CompareResult(speedup=0.0, p_value=1.0, accepted_by_rule=False,
                              baseline=baseline, candidate=candidate)
@@ -192,8 +209,20 @@ def compare_results(baseline: BenchResult, candidate: BenchResult) -> CompareRes
     except ValueError:
         p_value = 1.0
 
+    vs_best_speedup = vs_best_p = None
+    if reference is not None and reference.runtimes_ms and not reference.failed_runs:
+        vs_best_speedup = reference.median_ms / max(candidate.median_ms, 1e-3)
+        try:
+            _, vs_best_p = mannwhitneyu(reference.runtimes_ms, candidate.runtimes_ms, alternative="greater")
+            vs_best_p = float(vs_best_p)
+        except ValueError:
+            vs_best_p = 1.0
+
     accepted = speedup >= MIN_SPEEDUP and p_value < P_VALUE_THRESHOLD
     return CompareResult(
         speedup=speedup, p_value=float(p_value), accepted_by_rule=accepted,
         cpu_speedup=cpu_speedup, baseline=baseline, candidate=candidate,
+        reference=reference if vs_best_p is not None else None,
+        vs_best_speedup=vs_best_speedup, vs_best_p_value=vs_best_p,
+        low_precision=candidate.median_ms < LOW_PRECISION_MS or candidate.cv > LOW_PRECISION_CV,
     )

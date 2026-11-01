@@ -69,10 +69,12 @@ def profile_program(program_id: str) -> dict:
 
 
 @mcp.tool()
-def compare_to_baseline(candidate_id: str, program_id: str, n: int = 0) -> dict:
+def compare_to_baseline(candidate_id: str, program_id: str, n: int = 0, reference_candidate_id: str = "") -> dict:
     """Interleaved baseline-vs-candidate timing; speedup plus a Mann-Whitney p-value.
-    n=0 picks the repetition count adaptively from the stability table."""
-    result = bench_tool.compare(candidate_id, program_id, n=n or None)
+    n=0 picks the repetition count adaptively from the stability table.
+    reference_candidate_id (the current best) is timed in the same session and
+    tested against the candidate too."""
+    result = bench_tool.compare(candidate_id, program_id, n=n or None, reference_id=reference_candidate_id or None)
     return result.model_dump()
 
 

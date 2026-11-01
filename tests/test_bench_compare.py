@@ -53,3 +53,37 @@ def test_identical_binary_against_itself_is_within_noise():
     assert 0.9 < r.speedup < 1.1
     assert not r.accepted_by_rule
     assert len(r.baseline.runtimes_ms) == 5 and len(r.candidate.runtimes_ms) == 5
+
+
+# --- the current best is timed in the same session and tested too -------------
+
+def _timed(runtimes):
+    """A real BenchResult from raw wall-time samples (ms)."""
+    return bench.summarize([(t, t, 1000, 0) for t in runtimes])
+
+
+def test_reference_indistinguishable_from_candidate_is_not_better():
+    """The 189x -> 234x problem: both beat the baseline hugely, but ~5 ms
+    candidates are noise-limited, so one is not demonstrably faster."""
+    base = _timed([1100.0 + 3 * i for i in range(10)])
+    cand = _timed([4.0, 6.0, 5.0, 7.0, 4.5, 5.5, 6.5, 4.2, 6.2, 5.2])
+    ref = _timed([4.1, 6.1, 5.1, 7.1, 4.6, 5.6, 6.6, 4.3, 6.3, 5.3])
+    r = bench.compare_results(base, cand, ref)
+    assert r.accepted_by_rule                       # clear win over the baseline
+    assert r.vs_best_p_value > 0.05                 # but no evidence it beats the best
+    assert 0.9 < r.vs_best_speedup < 1.1
+    assert r.low_precision                          # median ~5 ms, CV ~19%: flagged
+
+
+def test_clearly_faster_than_the_reference_is_detected():
+    base = _timed([1000.0 + i for i in range(10)])
+    ref = _timed([200.0 + 0.1 * i for i in range(10)])
+    cand = _timed([100.0 + 0.1 * i for i in range(10)])
+    r = bench.compare_results(base, cand, ref)
+    assert r.vs_best_speedup > 1.9 and r.vs_best_p_value < 0.01
+    assert not r.low_precision                      # 100 ms, CV < 1%
+
+
+def test_no_reference_means_no_vs_best_fields():
+    r = bench.compare_results(_timed([100.0 + i for i in range(10)]), _timed([50.0 + i for i in range(10)]))
+    assert r.vs_best_speedup is None and r.vs_best_p_value is None and r.reference is None
