@@ -125,3 +125,59 @@ def test_live_adk_reviewer_over_a2a():
     text, usage, _ = local_reviewer().review(feedback_prompt(verdict, "tiling@main [-O2]", "+ for (ii=0; ii<n; ii+=32)"))
     assert len(text) > 20
     assert usage.prompt_tokens > 0 and usage.cost_usd > 0   # real tokens carried over A2A
+
+
+@pytest.fixture(scope="module")
+def failing_server():
+    import uvicorn
+    from google.adk.a2a.utils.agent_to_a2a import to_a2a
+    from google.adk.agents import BaseAgent
+
+    class AlwaysFails(BaseAgent):
+        async def _run_async_impl(self, ctx):
+            raise RuntimeError("429 RESOURCE_EXHAUSTED: simulated provider error inside the ADK agent")
+            yield  # makes this an async generator
+
+    port = _free_port()
+    app = to_a2a(AlwaysFails(name="failing_reviewer", description="always fails"), port=port)
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="critical"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.time() + 30
+    while not server.started and time.time() < deadline:
+        time.sleep(0.1)
+    yield f"http://127.0.0.1:{port}"
+    server.should_exit = True
+    thread.join(10)
+
+
+def test_a_failed_remote_task_is_an_error_not_a_review(failing_server):
+    """Regression: a failed ADK task still streams its error text, which used
+    to be returned as if it were the reviewer's feedback."""
+    from optiflow.interop.a2a_client import A2AError, ReviewerClient
+
+    with pytest.raises(A2AError) as exc:
+        ReviewerClient(failing_server, timeout_s=30).review("EVIDENCE: wrong_output")
+    assert "TASK_STATE_FAILED" in str(exc.value) and "429" in str(exc.value)
+
+
+def test_pipeline_keeps_the_rule_based_feedback_when_the_reviewer_fails(monkeypatch):
+    from optiflow.agents.mcp_tools import DirectToolClient
+    from optiflow.architectures.base import RunConfig
+    from optiflow.architectures.pipeline import Pipeline
+    from optiflow.comms import make_channel
+    from optiflow.core.schemas import Verdict
+    from optiflow.interop import a2a_client
+
+    class Boom:
+        def review(self, prompt):
+            raise a2a_client.A2AError("remote agent task ended TASK_STATE_FAILED: 429")
+
+    monkeypatch.setattr(a2a_client, "local_reviewer", lambda: Boom())
+    p = Pipeline(RunConfig(critic_backend="adk_a2a"), make_channel("blackboard"), DirectToolClient(),
+                 "matmul_naive", "sequential")
+    verdict = Verdict(accepted=False, reason="wrong_output", feedback_for_strategist="wrong_output: in2")
+    out, usage, info = p._explain_via_a2a(verdict, "tiling", "")
+    assert out.feedback_for_strategist == "wrong_output: in2"        # untouched, no error text leaked in
+    assert usage.calls == 0 and "TASK_STATE_FAILED" in info["error"]
+    assert p.extra_stats["a2a_errors"] == 1 and "a2a_calls" not in p.extra_stats

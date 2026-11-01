@@ -69,6 +69,26 @@ def _quota_exhausted(exc: Exception) -> bool:
     return bool(m and int(m.group(1)) > LONG_QUOTA_SECONDS)
 
 
+MAX_RATE_LIMIT_WAITS = 8
+RATE_LIMIT_PAD_S = 2
+
+
+def _rate_limit_wait(exc: Exception) -> float | None:
+    """Seconds the provider asked us to wait out a *per-minute* limit.
+
+    The free tier allows 15 requests per minute per model and answers a 429
+    with `retryDelay: 41s`; a 2-8 s backoff gives up long before the window
+    clears. Returns None when this isn't a short, server-specified wait.
+    """
+    text = str(exc)
+    if "429" not in text and "RESOURCE_EXHAUSTED" not in text:
+        return None
+    m = _RETRY_DELAY.search(text)
+    if m and int(m.group(1)) <= LONG_QUOTA_SECONDS and not _quota_exhausted(exc):
+        return int(m.group(1)) + RATE_LIMIT_PAD_S
+    return None
+
+
 def _is_transient(exc: Exception) -> bool:
     if _quota_exhausted(exc):
         return False
@@ -161,12 +181,15 @@ def call(agent: Agent, description: str, expected_output: str,
       on failure CrewAI re-asks the model with the reason, up to
       `guardrail_retries` times, then GuardrailFailed is raised.
     - CrewAI's step and task callbacks feed the active monitor.
-    - Transient failures (DNS blips, dropped connections, rate limits,
-      5xx) are retried with exponential backoff; anything else propagates.
+    - A per-minute rate limit (429 with a short `retryDelay`) is waited out for
+      exactly as long as the provider asks, up to MAX_RATE_LIMIT_WAITS times.
+    - Other transient failures (DNS blips, dropped connections, 5xx) are
+      retried with exponential backoff; anything else propagates.
     """
     agent.step_callback = _step_callback
     before = _usage_snapshot(agent.llm)
-    for attempt in range(1, MAX_TRIES + 1):
+    attempt = rate_waits = 0
+    while True:
         try:
             task = Task(
                 description=description, expected_output=expected_output, agent=agent,
@@ -183,7 +206,15 @@ def call(agent: Agent, description: str, expected_output: str,
             if _quota_exhausted(exc):
                 _emit("llm_error", error="provider quota exhausted")
                 raise QuotaExhausted(str(exc)[:600]) from exc
-            if attempt == MAX_TRIES or not _is_transient(exc):
+            wait = _rate_limit_wait(exc)
+            if wait is not None and rate_waits < MAX_RATE_LIMIT_WAITS:
+                rate_waits += 1
+                _emit("llm_retry", attempt=rate_waits, wait_s=wait, reason="provider rate limit",
+                      error=f"{type(exc).__name__}: {str(exc)[:160]}")
+                time.sleep(wait)
+                continue
+            attempt += 1
+            if attempt >= MAX_TRIES or not _is_transient(exc):
                 _emit("llm_error", error=f"{type(exc).__name__}: {str(exc)[:300]}")
                 raise
             _emit("llm_retry", attempt=attempt, error=f"{type(exc).__name__}: {str(exc)[:200]}")

@@ -31,7 +31,7 @@ CSV_COLUMNS = [
     "peak_mem_delta_kb", "attempts", "attempts_to_best", "compile_fail", "wrong_output",
     "sanitizer_fail", "total_tokens", "cost_usd", "latency_s", "crit_path_agent", "judge_score_mean",
     "winning_strategy", "stop_reason", "messages", "deliveries", "message_bytes",
-    "guardrail_flags", "a2a_calls", "a2a_latency_ms", "repeat", "error",
+    "guardrail_flags", "a2a_calls", "a2a_errors", "a2a_latency_ms", "repeat", "error",
     "started_at",
 ]
 
@@ -110,6 +110,7 @@ def row_from(state: RunState, cfg) -> dict:
         "message_bytes": state.messaging_stats.get("bytes", 0),
         "guardrail_flags": state.messaging_stats.get("guardrail_flags", 0),
         "a2a_calls": state.messaging_stats.get("a2a_calls", 0),
+        "a2a_errors": state.messaging_stats.get("a2a_errors", 0),
         "a2a_latency_ms": round(state.messaging_stats.get("a2a_latency_ms", 0.0), 1),
         "repeat": int((getattr(cfg, "tags", {}) or {}).get("repeat", 0)),
         "error": (state.error or "").splitlines()[0][:200] if state.error else "",

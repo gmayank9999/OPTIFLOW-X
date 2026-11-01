@@ -33,6 +33,9 @@ class A2AError(RuntimeError):
     pass
 
 
+FAILED_STATES = frozenset({"TASK_STATE_FAILED", "TASK_STATE_REJECTED", "TASK_STATE_CANCELED"})
+
+
 class ReviewerClient:
     transport = "a2a-jsonrpc"
 
@@ -74,13 +77,23 @@ class ReviewerClient:
         request = a2a_pb2.SendMessageRequest(message=new_text_message(text))
         chunks: list[str] = []
         usage: dict = {}
+        final_state = ""
         async for response in self._client.send_message(request):
+            as_dict = MessageToDict(response)
             piece = get_stream_response_text(response)
             if piece:
                 chunks.append(piece)
-            found = _find_key(MessageToDict(response), "adk_usage_metadata")
+            found = _find_key(as_dict, "adk_usage_metadata")
             if found:
                 usage = found
+            state = _find_key(as_dict, "state")
+            if isinstance(state, str):
+                final_state = state
+        # A failed remote task still streams its error message as ordinary
+        # text. Without this check a "429 RESOURCE_EXHAUSTED ..." from the ADK
+        # agent would be returned as a *review* and fed to the Strategist.
+        if final_state in FAILED_STATES:
+            raise A2AError(f"remote agent task ended {final_state}: {(chunks[-1] if chunks else '')[:300]}")
         return chunks, usage
 
     def review(self, prompt: str) -> tuple[str, TokenUsage, dict]:

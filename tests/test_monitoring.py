@@ -135,3 +135,61 @@ def test_daily_quota_is_not_retried_and_is_reported_distinctly(monkeypatch):
     with pytest.raises(llm.QuotaExhausted):
         llm.call(FakeAgent(), "d", "e")
     assert calls["n"] == 1        # no pointless retries
+
+
+# --- per-minute rate limits are waited out for as long as the provider asks ----
+
+PER_MINUTE_429 = ("429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Quota exceeded for metric: "
+                  "generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite', 'details': "
+                  "[{'violations': [{'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', "
+                  "'quotaValue': '15'}]}, {'retryDelay': '41s'}]}}")   # the real failure from a live run
+
+
+class FlakyTask:
+    """Fails with `error` for the first `fails` executions, then answers."""
+    fails, error, runs = 0, "", 0
+
+    def __init__(self, **kw): pass
+
+    def execute_sync(self, agent):
+        FlakyTask.runs += 1
+        if FlakyTask.runs <= FlakyTask.fails:
+            raise RuntimeError(FlakyTask.error)
+        return FakeOutput("ok")
+
+
+def _flaky(monkeypatch, fails, error):
+    FlakyTask.fails, FlakyTask.error, FlakyTask.runs = fails, error, 0
+    sleeps = []
+    monkeypatch.setattr(llm, "Task", FlakyTask)
+    monkeypatch.setattr(llm.time, "sleep", sleeps.append)
+    return sleeps
+
+
+def test_a_per_minute_limit_is_waited_out_for_the_requested_time(monkeypatch):
+    sleeps = _flaky(monkeypatch, fails=2, error=PER_MINUTE_429)
+    assert not llm._quota_exhausted(RuntimeError(PER_MINUTE_429))          # not a daily limit
+    text, _ = llm.call(FakeAgent(), "d", "e")
+    assert text == "ok" and FlakyTask.runs == 3
+    assert sleeps == [41 + llm.RATE_LIMIT_PAD_S] * 2                          # not the old 2 s / 4 s
+
+
+def test_rate_limit_waits_are_bounded(monkeypatch):
+    sleeps = _flaky(monkeypatch, fails=10**6, error=PER_MINUTE_429)
+    with pytest.raises(RuntimeError) as exc:
+        llm.call(FakeAgent(), "d", "e")
+    assert "429" in str(exc.value) and not isinstance(exc.value, llm.QuotaExhausted)
+    assert len(sleeps) >= llm.MAX_RATE_LIMIT_WAITS                            # waited, then gave up
+
+
+def test_other_transient_errors_still_use_exponential_backoff(monkeypatch):
+    sleeps = _flaky(monkeypatch, fails=3, error="ConnectError: [Errno 11001] getaddrinfo failed")
+    assert llm.call(FakeAgent(), "d", "e")[0] == "ok"
+    assert sleeps == [2, 4, 8]
+
+
+def test_a_long_requested_wait_is_a_quota_stop_not_a_wait(monkeypatch):
+    sleeps = _flaky(monkeypatch, fails=5, error=PER_MINUTE_429.replace("41s", "72385s"))
+    with pytest.raises(llm.QuotaExhausted):
+        llm.call(FakeAgent(), "d", "e")
+    assert sleeps == []
