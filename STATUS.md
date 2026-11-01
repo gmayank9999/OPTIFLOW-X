@@ -82,20 +82,39 @@ Machine: Intel i7-1185G7 laptop, Windows 11, Docker Desktop on WSL2
   it means anything. What does match the designs: event-driven is ~25%
   faster (profiling overlaps analysis) and the hierarchical manager
   stops earliest and spends least.
+- **E6 critic framework, 10-program subset, 1 run per cell, same Gemini
+  model**: rejection feedback written by the in-process CrewAI critic vs a
+  Google ADK agent reached over the A2A protocol.
+
+  | Critic | Geo-mean | Success | Cost/run | Latency | Attempts | A2A calls |
+  |---|---|---|---|---|---|---|
+  | CrewAI (in-process) | 6.94x | 9/10 | $0.0029 | 114 s | 4.6 | - |
+  | ADK over A2A | 7.01x | 9/10 | $0.0029 | 101 s | 4.1 | 20 (0 errors) |
+
+  Wilcoxon on log-speedups p = 0.73, median ratio 1.02x: **no measurable
+  difference in outcome**, which is what you would expect because the
+  critic only rewrites feedback after a rejection; the verdict is
+  rule-based either way. The A2A hop costs about 2.3 s per call. Per-program
+  differences (e.g. lcs 1.66x vs 3.31x, floyd_warshall 3.15x vs 1.15x) are
+  LLM run-to-run randomness at one run per cell, not a framework effect.
+  The result shows the cross-framework path works end to end and costs
+  little, not that either framework gives better feedback. Run with the
+  statistical vs-best acceptance rule.
 
 ## Not done yet / limitations
 
-- **LLM quota:** the Gemini key is on the free tier (500 requests/day per
-  model). Campaign 2 (E6 interop, E3 prompting + personas, E2 messaging,
-  E5 ablations, E7 repeats) stopped after 4 E6 runs when the daily quota
-  ran out; the runner now stops cleanly on a daily quota and resumes from
-  where it stopped. Finishing needs either billing enabled (~$1 at the
-  measured cost per run) or ~25 runs per day on the free tier. The daily
-  quota has since reset (a live run on 1 Nov succeeded); the remaining
-  experiments are simply not run yet. **Experiment status: E0 (100 runs)
-  and E1 (30 runs) done; E6 has 4 CrewAI runs and no ADK-over-A2A runs, so
-  the CrewAI-vs-ADK comparison is unmeasured; E2, E3, E4, E5, E7 have no
-  runs.**
+- **LLM quota:** both Gemini keys used so far are free tier: 500
+  requests/day per model and 15 requests/minute. The first key ran out
+  of its daily quota during the first attempt at E6. The second key hit the
+  per-minute limit (the retry now waits as long as the provider asks, see
+  `core/llm.py`). The runner stops cleanly on a daily quota and resumes where
+  it stopped: `python -m optiflow.experiments.run_all`. On a free tier the
+  remaining experiments take roughly 1-2 weeks at ~25 runs/day; enabling
+  billing finishes them in a few hours for about $1 at the measured cost per
+  run. **Experiment status: E0 (100 runs), E1 (30), E6 (20) done. E3, E2, E5,
+  E7 are in progress or not started. E4 (local / mixed models) is not run:
+  it needs a 7B local model, which would swap on this 15 GB laptop and
+  distort timings, and an OpenAI key.**
 - **Very fast candidates make speedup ratios imprecise (acceptance logic
   fixed, ratios still imprecise).** A live bubble_sort run went 189x then
   234x (adding -flto). Those candidates run in about 5 ms with 31-34%
