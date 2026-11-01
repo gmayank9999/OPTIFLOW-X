@@ -27,7 +27,8 @@ from optiflow.experiments.store import RUNS_CSV
 
 OUT_JSON = pathlib.Path("results/analysis.json")
 FIG_DIR = pathlib.Path("results/figures")
-FACTORS = ("architecture", "messaging", "prompt_style", "persona", "critic_backend", "model_config", "variant")
+ADHOC_EXPERIMENTS = frozenset({"dashboard", "cli", "smoke", "adhoc"})  # one-off runs, not designed comparisons
+FACTORS =("architecture", "messaging", "prompt_style", "persona", "critic_backend", "model_config", "variant")
 
 
 def load_runs(path: pathlib.Path | None = None) -> pd.DataFrame:
@@ -169,7 +170,12 @@ def analysis(df: pd.DataFrame | None = None) -> dict:
         return {"runs": 0}
     by_experiment = {}
     for exp, g in df.groupby("experiment"):
-        varied = [f for f in FACTORS if g[f].nunique() > 1]
+        # One-off runs (dashboard, CLI, smoke tests) are not designed
+        # experiments: their rows differ in program *and* configuration, so
+        # any per-factor table would compare unlike things (one hand-picked
+        # run against six rule-based baselines on other programs). They get
+        # a single summary row and no comparisons or significance tests.
+        varied = [] if exp in ADHOC_EXPERIMENTS else [f for f in FACTORS if g[f].nunique() > 1]
         by_experiment[exp] = {
             "runs": int(len(g)), "varied": varied,
             "summaries": {f: summarize(g, f) for f in varied} or {"all": summarize(g.assign(all="all"), "all")},

@@ -90,7 +90,20 @@ Machine: Intel i7-1185G7 laptop, Windows 11, Docker Desktop on WSL2
   E5 ablations, E7 repeats) stopped after 4 E6 runs when the daily quota
   ran out; the runner now stops cleanly on a daily quota and resumes from
   where it stopped. Finishing needs either billing enabled (~$1 at the
-  measured cost per run) or ~25 runs per day on the free tier.
+  measured cost per run) or ~25 runs per day on the free tier. The daily
+  quota has since reset (a live run on 1 Nov succeeded); the remaining
+  experiments are simply not run yet. **Experiment status: E0 (100 runs)
+  and E1 (30 runs) done; E6 has 4 CrewAI runs and no ADK-over-A2A runs, so
+  the CrewAI-vs-ADK comparison is unmeasured; E2, E3, E4, E5, E7 have no
+  runs.**
+- **Very fast candidates make speedup ratios unreliable.** A live
+  bubble_sort run went 189x then 234x (adding -flto). Those candidates run
+  in about 5 ms with 31-34% run-to-run variation, where process startup
+  dominates, so the 189x -> 234x "improvement" is within noise. The Critic
+  tests every candidate against the baseline statistically but only
+  compares a candidate to the current best by point estimate (> 2%). Treat
+  ratios above ~100x as "much faster", not as precise numbers. A fix
+  (test candidate vs current best, or a minimum runtime) is not yet made.
 - **Cloud:** everything is ready (`deploy/README.md`) but deploying needs
   a GCP account with billing and the commits pushed to GitHub.
 

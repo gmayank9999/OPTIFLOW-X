@@ -25,8 +25,14 @@ const EXP_TITLE: Record<string, string> = {
   e5_ablations: "E5 · Ablations",
   e6_interop: "E6 · CrewAI vs ADK over A2A (critic)",
   e7_repeats: "E7 · Architecture, 3 repeats per cell",
-  dashboard: "Ad-hoc runs from the dashboard",
+  dashboard: "One-off runs from the dashboard",
+  cli: "One-off runs from the command line",
+  smoke: "Smoke tests",
 };
+
+// Not designed experiments: rows differ in program and configuration at
+// once, so they get a summary but are never compared with each other.
+const ADHOC = new Set(["dashboard", "cli", "smoke", "adhoc"]);
 
 export default function ExperimentsPage() {
   const { data, error } = useApi<Analysis>("/experiments/summary", 30000);
@@ -53,7 +59,12 @@ export default function ExperimentsPage() {
           </StatRow>
 
           {Object.entries(data.experiments ?? {}).map(([name, exp]) => (
-            <Panel key={name} className="mt-6" eyebrow={`${exp.runs} runs`} title={EXP_TITLE[name] ?? name}>
+            <Panel
+              key={name}
+              className="mt-6"
+              eyebrow={`${exp.runs} run${exp.runs === 1 ? "" : "s"}${ADHOC.has(name) ? " · not a comparison" : ""}`}
+              title={EXP_TITLE[name] ?? name}
+            >
               {Object.entries(exp.summaries).map(([factor, rows]) => (
                 <div key={factor} className="mb-5 last:mb-0">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
