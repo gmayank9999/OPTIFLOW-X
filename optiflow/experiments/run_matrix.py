@@ -95,8 +95,7 @@ def main() -> None:
                       f"[{state.stop_reason}]", flush=True)
             except QuotaExhausted as exc:
                 print(f"  {pid:24s} {label:60s} STOPPED: LLM provider quota exhausted; the matrix will resume "
-                      f"from here when re-run.
-  {str(exc)[:240]}", file=sys.stderr, flush=True)
+                      f"from here when re-run.\n  {str(exc)[:240]}", file=sys.stderr, flush=True)
                 sys.exit(3)
             except Exception as exc:  # noqa: BLE001 - log and keep the matrix going
                 print(f"  {pid:24s} {label:60s} FAILED: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
