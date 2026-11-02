@@ -47,9 +47,10 @@ def test_health_reports_sandbox_and_keys_without_values():
     assert all(isinstance(v, bool) for v in body["keys"].values())
 
 
-@pytest.mark.parametrize("path", ["/api/runs", "/api/metrics/agents", "/api/experiments/summary", "/api/ml", "/api/stability"])
+@pytest.mark.parametrize("path", ["/api/runs", "/api/metrics/agents", "/api/experiments/summary", "/api/ml", "/api/stability", "/api/requirements"])
 def test_read_endpoints_respond(path):
     assert client.get(path).status_code == 200
+
 
 
 def test_write_endpoint_requires_token_when_configured(monkeypatch):
@@ -61,3 +62,8 @@ def test_write_endpoint_requires_token_when_configured(monkeypatch):
     assert client.post("/api/runs", json=body, headers={"Authorization": "Bearer s3cret"}).status_code == 404
     assert client.post("/api/runs", json=body, headers={"X-API-Token": "s3cret"}).status_code == 404
     assert client.get("/api/health").json()["write_requires_token"] is True
+
+
+def test_cancel_run_endpoints():
+    assert client.post("/api/runs/nonexistent/cancel").status_code == 404
+

@@ -97,6 +97,9 @@ def _worker_main() -> None:
     while True:
         run_id, cfg, program_id = _queue.get()
         with _lock:
+            if _runs.get(run_id, {}).get("status") == "cancelled":
+                _queue.task_done()
+                continue
             _runs[run_id]["status"] = "running"
             _runs[run_id]["started_at"] = time.time()
         try:
@@ -237,6 +240,22 @@ def start_run(req: StartRunRequest) -> dict:
     return {"run_id": run_id, "status": "queued", "position": _queue.qsize()}
 
 
+@app.post("/api/runs/{run_id}/cancel")
+def cancel_run(run_id: str) -> dict:
+    with _lock:
+        run = _runs.get(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="unknown run_id")
+        if run["status"] in ("done", "failed", "cancelled"):
+            return {"run_id": run_id, "status": run["status"], "message": f"run already {run['status']}"}
+        prev_status = run["status"]
+        run["status"] = "cancelled"
+        run["error"] = "Cancelled by user"
+    _publish(run_id, {"type": "run_end", "status": "cancelled", "error": "Cancelled by user", "t": time.time(),
+                      "run_id": run_id})
+    return {"run_id": run_id, "status": "cancelled", "previous_status": prev_status}
+
+
 @app.get("/api/runs")
 def list_runs(limit: int = 200) -> list[dict]:
     rows = {r["run_id"]: {**r, "status": "failed" if r.get("error") else "done"} for r in read_rows()}
@@ -367,6 +386,14 @@ def judge_scores() -> list[dict]:
     from optiflow.observability.judge import load_scores
 
     return load_scores()
+
+
+@app.get("/api/requirements")
+def requirements_review() -> dict:
+    from optiflow.api.requirements import get_requirements_data
+
+    return get_requirements_data()
+
 
 
 # ------------------------------------------------------------------ helpers

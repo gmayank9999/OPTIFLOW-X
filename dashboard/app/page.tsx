@@ -44,6 +44,20 @@ export default function Overview() {
         <Stat label="Agents beat -O3" value={both.length ? `${beatFlags}/${both.length}` : "—"} sub="by more than 5%" />
       </StatRow>
 
+      <div className="mt-6 flex flex-col items-start justify-between gap-4 rounded-[7px] border border-accent/40 bg-accent-soft px-5 py-4 sm:flex-row sm:items-center">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-accent animate-pulse" />
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-accent">Review Ready</span>
+          </div>
+          <h2 className="mt-1 text-[15px] font-semibold text-ink">Professor's 11 Project Requirements Compliance Dashboard</h2>
+          <p className="text-[13px] text-muted">Complete live audit with Blackboard messaging comparison, FastMCP tools, A2A interop, Pydantic contracts, and guardrails.</p>
+        </div>
+        <Link href="/requirements/" className="shrink-0 rounded-[5px] bg-ink px-3.5 py-1.5 font-mono text-[12px] font-medium text-paper hover:opacity-90">
+          View 11 Requirements →
+        </Link>
+      </div>
+
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
         <Panel eyebrow="Start" title="New optimization run">
           <StartRun />

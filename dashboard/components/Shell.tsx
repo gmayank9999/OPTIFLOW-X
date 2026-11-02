@@ -8,6 +8,8 @@ import { cx } from "@/lib/format";
 
 const NAV = [
   { href: "/", label: "Overview", key: "overview" },
+  { href: "/workspace/", label: "Try as User", key: "workspace" },
+  { href: "/requirements/", label: "Requirements", key: "requirements" },
   { href: "/runs/", label: "Runs", key: "runs" },
   { href: "/programs/", label: "Programs", key: "programs" },
   { href: "/agents/", label: "Agents", key: "agents" },
@@ -21,7 +23,8 @@ function active(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   const base = href.replace(/\/$/, "");
   return pathname.startsWith(base) || (base === "/runs" && pathname.startsWith("/run")) ||
-    (base === "/programs" && pathname.startsWith("/program"));
+    (base === "/programs" && pathname.startsWith("/program")) ||
+    (base === "/workspace" && pathname.startsWith("/workspace"));
 }
 
 export function Mark({ size = 22 }: { size?: number }) {
@@ -49,9 +52,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <Mark size={20} />
           <span className="font-mono text-[12px] font-medium tracking-[0.12em]">OPTIFLOW-X</span>
         </Link>
-        <button onClick={() => setOpen((o) => !o)} className="rounded border border-rule px-2.5 py-1 text-[12px]" aria-expanded={open}>
-          {open ? "Close" : "Menu"}
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/workspace/"
+            className="flex items-center gap-1.5 rounded-[5px] border border-accent/40 bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent hover:bg-accent hover:text-white"
+          >
+            <span>🚀</span>
+            <span>Try as User</span>
+          </Link>
+          <button onClick={() => setOpen((o) => !o)} className="rounded border border-rule px-2.5 py-1 text-[12px]" aria-expanded={open}>
+            {open ? "Close" : "Menu"}
+          </button>
+        </div>
       </div>
 
       <aside
@@ -60,13 +72,37 @@ export function Shell({ children }: { children: React.ReactNode }) {
           open ? "block border-b px-3 pb-4" : "hidden",
         )}
       >
-        <Link href="/" className="hidden items-center gap-2.5 px-5 pb-6 pt-6 md:flex">
+        <Link href="/" className="hidden items-center gap-2.5 px-5 pb-5 pt-6 md:flex">
           <Mark />
           <div className="leading-tight">
             <div className="font-mono text-[12.5px] font-medium tracking-[0.14em]">OPTIFLOW-X</div>
             <div className="text-[11px] text-muted">verified C/C++ optimization</div>
           </div>
         </Link>
+
+        {/* Prominent Try as User Callout */}
+        <div className="px-3 pb-3 hidden md:block">
+          <Link
+            href="/workspace/"
+            className={cx(
+              "flex items-center justify-between rounded-[6px] px-3 py-2 text-[12px] font-semibold transition-all",
+              pathname.startsWith("/workspace")
+                ? "bg-ink text-paper shadow-sm"
+                : "border border-accent/50 bg-accent-soft text-accent hover:border-accent hover:bg-accent hover:text-white",
+            )}
+          >
+            <span className="flex items-center gap-2">
+              <span className="text-[14px]">🚀</span>
+              <span>Try as User</span>
+            </span>
+            <span className={cx(
+              "rounded px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider",
+              pathname.startsWith("/workspace") ? "bg-white/20 text-paper" : "bg-accent/15 text-accent"
+            )}>
+              Guided
+            </span>
+          </Link>
+        </div>
         <nav className="flex flex-col gap-0.5 px-3 pt-2 md:pt-0">
           {NAV.map((item, i) => {
             const on = active(pathname, item.href);

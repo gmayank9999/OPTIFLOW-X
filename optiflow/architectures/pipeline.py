@@ -224,8 +224,15 @@ class Pipeline:
                   architecture=self.state.architecture)
 
     def ensure_best_source(self) -> None:
+        if not self.state.best:
+            self.state.best = {
+                "attempt": 0,
+                "speedup": 1.0,
+                "strategies": [],
+                "candidate": {"source": "", "flags": ["-O2"]},
+            }
         if not self.state.best["candidate"]["source"]:
-            self.state.best["candidate"]["source"] = self.state.summary.source
+            self.state.best["candidate"]["source"] = self.state.summary.source if self.state.summary else ""
 
     def plan(self, attempt: int) -> OptimizationPlan:
         with self.step("strategist", attempt=attempt, prompt_style=self.cfg.prompt_style) as rec:
@@ -250,9 +257,13 @@ class Pipeline:
                 plan, rec["usage"], info = strategist.plan(
                     self.cfg.model_assignment, context, attempt, self.cfg.prompt_style
                 )
+                rec["data"]["prompt_style"] = self.cfg.prompt_style
                 rec["data"]["persona"] = self.cfg.persona
                 rec["data"]["prompt_chars"] = info.get("prompt_chars")
                 rec["data"]["tool_calls"] = info.get("tool_calls", [])
+                if "draft" in info:
+                    rec["data"]["draft_plan"] = info["draft"]
+                    self.emit("reflection_draft", draft=info["draft"], attempt=attempt)
             rec["summary"] = _plan_line(plan)
             rec["data"]["plan"] = plan.model_dump()
         self._my_plans.append(plan.model_dump())
