@@ -155,8 +155,14 @@ function SystemStatus() {
   return (
     <div className="border-t border-rule px-5 py-4 text-[12px]">
       <div className="eyebrow mb-2">System</div>
-      <Dot ok={data ? data.docker : null} label="Docker" />
-      <Dot ok={data ? data.sandbox_image : null} label="Sandbox image" />
+      {data?.sandbox?.backend === "local" ? (
+        <Dot ok={data.sandbox.ready} label="Sandbox (local)" title={data.sandbox.isolation} />
+      ) : (
+        <>
+          <Dot ok={data ? data.docker : null} label="Docker" />
+          <Dot ok={data ? data.sandbox_image : null} label="Sandbox image" />
+        </>
+      )}
       <Dot ok={anyKey} label="LLM key" title={data ? Object.entries(data.keys).filter(([, v]) => v).map(([k]) => k).join(", ") : ""} />
       <div className="flex items-center justify-between py-[3px]">
         <span className="text-muted">Queue</span>

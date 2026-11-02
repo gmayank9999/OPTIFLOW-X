@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError, GuardrailCheck, Health, ProgramDetail, ProgramRow, RunDetail, RunEvent, streamUrl, useApi } from "@/lib/api";
+import { api, ApiError, getToken, GuardrailCheck, Health, ProgramDetail, ProgramRow, RunDetail, RunEvent, setToken, streamUrl, useApi } from "@/lib/api";
 import { cx, CATEGORY_LABEL } from "@/lib/format";
 import {
   deriveOutcome, detectLanguage, GOALS, GoalKey, Language, MAX_TEST_INPUTS, SAMPLES, validateCode, validateFile, validateTestInput,
@@ -48,6 +48,10 @@ export default function WorkspacePage() {
   const [method, setMethod] = useState<Method>("quick");
   const [effort, setEffort] = useState<Effort>(3);
   const [strict, setStrict] = useState(true);
+  const [tokenDraft, setTokenDraft] = useState("");
+  const [tokenSaved, setTokenSaved] = useState(false);
+  useEffect(() => { setTokenSaved(!!getToken()); }, []);
+  const needToken = !!health?.write_requires_token && !tokenSaved;
 
   // Steps 4-5: the run
   const [runId, setRunId] = useState<string | null>(null);
@@ -67,7 +71,7 @@ export default function WorkspacePage() {
   const activeCode = isSample ? sampleCode : code;
   const activeLang = isSample ? sampleLang : language;
   const keyAvailable = !!health && Object.values(health.keys).some(Boolean);
-  const dockerDown = !!health && !health.docker;
+  const sandboxDown = !!health && !(health.sandbox ? health.sandbox.ready : health.docker);
   const instructions = goal === "custom" ? customGoal.trim() : GOALS.find((g) => g.key === goal)!.instructions;
 
   // Load the chosen sample program's source.
@@ -185,6 +189,7 @@ export default function WorkspacePage() {
       setStep(4);
     } catch (e) {
       const err = e as ApiError;
+      if (err.status === 401) { setToken(""); setTokenSaved(false); }  // wrong or missing token: ask again
       setSubmitError(err.message || "We couldn't start the optimization.");
     } finally {
       setSubmitting(false);
@@ -240,10 +245,16 @@ export default function WorkspacePage() {
 
       <Stepper current={step} reachable={reachable} onGo={setStep} />
 
-      {dockerDown && (
-        <Notice tone="warn" title="Docker isn't running">
-          Optimizing needs Docker to compile and time code safely. Start Docker Desktop, then reload this page.
-        </Notice>
+      {sandboxDown && (
+        health?.sandbox?.backend === "local" ? (
+          <Notice tone="warn" title="The compiler sandbox isn't ready">
+            This server is missing a tool needed to compile and time code ({Object.entries(health.sandbox.tools ?? {}).filter(([, ok]) => !ok).map(([t]) => t).join(", ") || "see /api/health"}).
+          </Notice>
+        ) : (
+          <Notice tone="warn" title="Docker isn't running">
+            Optimizing needs Docker to compile and time code safely. Start Docker Desktop, then reload this page.
+          </Notice>
+        )
       )}
 
       {/* ---------------------------------------------------------- 1 */}
@@ -401,10 +412,20 @@ export default function WorkspacePage() {
             </label>
           </Accordion>
 
+          {needToken && (
+            <div className="space-y-2 rounded-[10px] border border-rule bg-surface p-4">
+              <label htmlFor="access-token" className="block text-[14.5px] font-semibold">Access token</label>
+              <p className="text-[13px] text-muted">This server only lets people with a token start optimizations. Your token is stored in this browser only.</p>
+              <div className="flex gap-2">
+                <input id="access-token" type="password" autoComplete="off" value={tokenDraft} onChange={(e) => setTokenDraft(e.target.value)} className="min-w-0 flex-1 rounded-[8px] border border-rule bg-sunken px-3 py-2 font-mono text-[13px] outline-none focus:border-accent" />
+                <BigButton variant="ghost" disabled={!tokenDraft.trim()} onClick={() => { setToken(tokenDraft.trim()); setTokenDraft(""); setTokenSaved(true); setSubmitError(null); }}>Save</BigButton>
+              </div>
+            </div>
+          )}
           {submitError && <Notice tone="bad" title="We couldn't start the optimization">{submitError}</Notice>}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <BigButton variant="ghost" onClick={() => setStep(2)}>← Back</BigButton>
-            <BigButton onClick={optimize} disabled={submitting || dockerDown}>{submitting ? "Starting…" : "Optimize my code"}</BigButton>
+            <BigButton onClick={optimize} disabled={submitting || sandboxDown || needToken}>{submitting ? "Starting…" : "Optimize my code"}</BigButton>
           </div>
         </section>
       )}

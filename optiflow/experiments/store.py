@@ -18,10 +18,11 @@ import pathlib
 import threading
 
 from optiflow.agents.codeblock import unified_diff
+from optiflow.core.config import data_dir
 from optiflow.core.schemas import RunState
 
 RESULTS = pathlib.Path("results")
-RUNS_DIR = RESULTS / "runs"
+RUNS_DIR = data_dir("runs")
 RUNS_CSV = RESULTS / "runs.csv"
 EXPERIENCE = RESULTS / "experience.jsonl"
 

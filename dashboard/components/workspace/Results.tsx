@@ -148,6 +148,11 @@ export function ResultsView({
           <button type="button" onClick={() => copy(buildCmd, "cmd")} className="mt-2 text-[13px] font-medium text-info underline underline-offset-2">
             {copied === "cmd" ? "Copied" : "Copy build command"}
           </button>
+          {outcome.flags.includes("-march=native") && (
+            <span className="mt-2 block text-[13px] text-muted">
+              Note: -march=native tunes the program for the CPU it was compiled on, so a binary built this way may not run on other CPUs.
+            </span>
+          )}
         </Notice>
       )}
 

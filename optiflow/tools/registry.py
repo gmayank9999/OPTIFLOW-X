@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
 import pathlib
+
+from optiflow.core.config import data_dir
 
 BENCHMARKS_ROOT = pathlib.Path(__file__).resolve().parents[2] / "benchmarks"
 # Programs pasted or uploaded through the workspace. Kept apart from the
 # benchmark suite so the manifest, the stability table and the experiment
 # matrix never see them (see optiflow/tools/custom.py).
-CUSTOM_ROOT = pathlib.Path(__file__).resolve().parents[2] / "results" / "custom_programs"
+CUSTOM_ROOT = (data_dir("custom_programs") if os.getenv("OPTIFLOW_DATA_DIR")
+               else pathlib.Path(__file__).resolve().parents[2] / "results" / "custom_programs")
 CUSTOM_PREFIX = "custom_"
 
 

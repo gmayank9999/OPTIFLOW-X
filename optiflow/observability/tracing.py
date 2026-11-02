@@ -21,7 +21,9 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, SpanExportResult
 from opentelemetry.trace import Tracer
 
-TRACE_DIR = pathlib.Path("results/traces")
+from optiflow.core.config import data_dir
+
+TRACE_DIR = data_dir("traces")
 DEFAULT_TRACE_PATH = TRACE_DIR / "spans.jsonl"
 
 _lock = threading.Lock()

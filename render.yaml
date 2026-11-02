@@ -1,0 +1,36 @@
+# Render Blueprint for OPTIFLOW-X. Single Docker web service: FastAPI +
+# the static dashboard + the agents, with the C/C++ toolchain in the image.
+# The ADK reviewer is started on demand inside the same container
+# (OPTIFLOW_A2A_URL is left unset), so there's no second service to pay for.
+#
+# Render offers no Docker daemon, so candidates run with SANDBOX_BACKEND=local
+# (unprivileged subprocess + resource limits, no network isolation).
+# Starting a run is therefore protected by OPTIFLOW_API_TOKEN, which Render
+# generates; read it under the service's Environment tab. See deploy/RENDER.md.
+services:
+  - type: web
+    name: optiflow-x
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    branch: render-deploy
+    plan: standard            # 2 GB RAM: torch + sentence-transformers + CrewAI + ADK
+    healthCheckPath: /api/health
+    autoDeploy: false
+    disk:
+      name: optiflow-data     # run reports, traces and user programs survive restarts
+      mountPath: /var/data
+      sizeGB: 2
+    envVars:
+      - key: SANDBOX_BACKEND
+        value: local
+      - key: OPTIFLOW_DATA_DIR
+        value: /var/data
+      - key: OPTIFLOW_API_TOKEN
+        generateValue: true
+      - key: MODEL_ASSIGNMENT
+        value: single-cloud
+      - key: CREWAI_DISABLE_TELEMETRY
+        value: "true"
+      - key: GEMINI_API_KEY    # optional: without a key only the free Quick-tune method works
+        sync: false

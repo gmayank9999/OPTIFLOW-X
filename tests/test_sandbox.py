@@ -1,6 +1,9 @@
 """Sandbox security and reliability checks (Section 7.3 of the plan)."""
 
+import os
 import tempfile
+
+import pytest
 
 from optiflow.tools.compile import compile_and_register, get_candidate_dir
 from optiflow.tools.sandbox import run_in_sandbox
@@ -45,6 +48,11 @@ def test_infinite_loop_hits_timeout():
     assert result["timed_out"] is True
 
 
+@pytest.mark.skipif(
+    os.getenv("SANDBOX_BACKEND", "docker") == "local",
+    reason="the local backend (Render) has no network namespace; this is documented in deploy/RENDER.md "
+           "and why starting a run requires OPTIFLOW_API_TOKEN",
+)
 def test_outbound_network_connections_fail():
     build = compile_and_register(SOCKET_PROGRAM, lang="c", compiler="gcc", flags=["-O0"])
     assert build.ok, build.stderr

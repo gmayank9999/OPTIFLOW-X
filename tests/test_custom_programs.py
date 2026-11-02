@@ -209,3 +209,37 @@ int main(void) { int n; scanf("%d", &n); printf("%d\n", n * 2); return 0; }
     pid = custom.new_program_id()
     custom.materialize(pid, source, "c", ["21\n"])
     assert (custom_root / pid / "expected" / "out1.txt").read_text().strip() == "42"
+
+
+# ------------------------------------- a visitor's code never reaches public pages
+
+def _write_report(runs_dir, run_id, program_id, mtime):
+    import os
+
+    d = runs_dir / run_id
+    d.mkdir(parents=True)
+    row = {"run_id": run_id, "program_id": program_id, "speedup": "9.0", "architecture": "sequential",
+           "messaging": "blackboard"}
+    state = {"program_id": program_id, "best": {"speedup": 9.0}, "history": [], "usage": {},
+             "guardrail_events": [{"agent": "analyzer", "attempt": None, "stage": "x", "detail": "secret source"}]}
+    (d / "report.json").write_text(json.dumps({"config": {}, "state": state, "row": row}))
+    (d / "diff.patch").write_text("+ visitor code")
+    os.utime(d, (mtime, mtime))
+
+
+def test_public_pages_skip_custom_runs(tmp_path, monkeypatch):
+    from optiflow.api import requirements as requirements_api
+
+    runs = tmp_path / "runs"
+    _write_report(runs, "benchmarkrun", "matmul_naive", 1_000)
+    _write_report(runs, "visitorrun", "custom_abc123", 2_000)  # newer: would win a "latest" pick
+    from optiflow.experiments import store
+
+    for module in (store, requirements_api, api_main):
+        monkeypatch.setattr(module, "RUNS_DIR", runs)
+
+    sample = requirements_api.get_requirements_data()["req3_pydantic"]["sample_report"]
+    assert sample["program_id"] == "matmul_naive"
+
+    events = client.get("/api/guardrails/events").json()
+    assert all(not e["program_id"].startswith("custom_") for e in events)

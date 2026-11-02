@@ -33,10 +33,10 @@ from google.adk.models import LlmResponse
 from google.adk.tools import FunctionTool
 from google.genai import types
 
-from optiflow.core.config import get_settings
+from optiflow.core.config import data_dir, get_settings
 from optiflow.security.guardrails import check_llm_output, scan
 
-LOG_PATH = pathlib.Path("results/traces/adk_reviewer.jsonl")
+LOG_PATH = data_dir("traces") / "adk_reviewer.jsonl"
 _log_lock = threading.Lock()
 
 INSTRUCTION = """\

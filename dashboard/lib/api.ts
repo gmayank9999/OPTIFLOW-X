@@ -101,6 +101,7 @@ export function streamUrl(runId: string): string {
 export type Health = {
   docker: boolean;
   sandbox_image: boolean;
+  sandbox?: { backend: "docker" | "local"; ready: boolean; isolation: string; tools?: Record<string, boolean> };
   keys: Record<string, boolean>;
   model_assignment: string;
   assignments: Record<string, Record<string, string>>;

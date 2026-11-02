@@ -32,7 +32,7 @@ from pydantic import BaseModel, Field
 from optiflow.architectures.base import RunConfig
 from optiflow.core.console import fix_windows_console_encoding
 from optiflow.experiments.store import RUNS_DIR, load_events, load_report, read_rows
-from optiflow.tools.registry import _program_dir, list_programs, load, load_meta
+from optiflow.tools.registry import _program_dir, is_custom, list_programs, load, load_meta
 
 fix_windows_console_encoding()
 
@@ -145,19 +145,22 @@ def _ensure_worker() -> None:
 def health() -> dict:
     from optiflow.core.config import get_settings, model_assignments
 
-    docker_ok, image_ok = False, False
-    try:
-        from optiflow.tools.sandbox import _get_client
+    from optiflow.tools.sandbox import backend, sandbox_status
 
-        client = _get_client()
-        docker_ok = True
-        image_ok = bool(client.images.list(name=get_settings().sandbox_image))
-    except Exception:  # noqa: BLE001
-        pass
+    docker_ok, image_ok = False, False
+    if backend() == "docker":  # the local backend has no daemon to probe
+        try:
+            from optiflow.tools.sandbox import _get_client
+
+            client = _get_client()
+            docker_ok = True
+            image_ok = bool(client.images.list(name=get_settings().sandbox_image))
+        except Exception:  # noqa: BLE001
+            pass
     s = get_settings()
     keys = {k: bool(os.getenv(k)) for k in ("GEMINI_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY")}
     return {
-        "docker": docker_ok, "sandbox_image": image_ok, "keys": keys,
+        "docker": docker_ok, "sandbox_image": image_ok, "sandbox": sandbox_status(), "keys": keys,
         "model_assignment": s.model_assignment, "assignments": model_assignments(),
         "machine": _read_json(RESULTS / "machine.json"),
         "queue_depth": _queue.qsize(),
@@ -406,6 +409,8 @@ def guardrail_events(limit: int = 200) -> list[dict]:
         report = load_report(run_dir.name)
         if not report:
             continue
+        if is_custom(report["state"]["program_id"]):
+            continue  # public endpoint: events can quote a visitor's code
         for event in report["state"].get("guardrail_events", []):
             out.append({"run_id": run_dir.name, "program_id": report["state"]["program_id"], **event})
     return out[:limit]

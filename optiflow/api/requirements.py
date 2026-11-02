@@ -21,6 +21,7 @@ from optiflow.core.schemas import (
     Verdict,
 )
 from optiflow.experiments.store import RUNS_CSV, RUNS_DIR, load_report, read_rows
+from optiflow.tools.registry import is_custom
 
 RESULTS = pathlib.Path("results")
 
@@ -95,6 +96,8 @@ def get_requirements_data() -> dict:
     sample_report = None
     for run_dir in sorted(RUNS_DIR.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True):
         rep = load_report(run_dir.name)
+        if rep and is_custom(rep["state"].get("program_id", "")):
+            continue  # this page is public: never show a visitor's submitted code
         if rep and rep.get("state", {}).get("best", {}).get("speedup", 1.0) > 1.05:
             sample_report = {
                 "run_id": rep["row"]["run_id"],

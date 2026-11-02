@@ -1,0 +1,74 @@
+# OPTIFLOW-X for hosts that give the app NO Docker daemon (Render).
+#
+# The standard Dockerfile drives the host's Docker socket to start a sandbox
+# container per candidate. Render doesn't offer that, so this image carries
+# the C/C++ toolchain itself and runs candidates with SANDBOX_BACKEND=local
+# (an unprivileged subprocess with resource limits; see
+# optiflow/tools/sandbox.py for exactly what that does and does not isolate).
+#
+#   docker build -f Dockerfile.render -t optiflow-render .
+
+# --- 1. dashboard (static export) ---------------------------------------------
+FROM node:20.18-slim AS dashboard
+WORKDIR /dashboard
+COPY dashboard/package.json dashboard/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY dashboard/ ./
+RUN npm run build
+
+# --- 2. benchmark harness -------------------------------------------------------
+FROM debian:bookworm-slim AS hrtime
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && rm -rf /var/lib/apt/lists/*
+COPY docker/hrtime.c /tmp/hrtime.c
+RUN gcc -O2 -o /hrtime /tmp/hrtime.c
+
+# --- 3. runtime -------------------------------------------------------------------
+FROM python:3.11-slim AS runtime
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HUB_DISABLE_PROGRESS_BARS=1 \
+    CREWAI_DISABLE_TELEMETRY=true \
+    SANDBOX_BACKEND=local
+WORKDIR /app
+
+# Toolchain the sandbox commands expect: gcc/g++/clang to build, binutils for
+# gprof, valgrind for the cachegrind fallback profiler, util-linux (prlimit)
+# and coreutils (timeout) for the local sandbox. `perf` is not installed:
+# Render containers can't read hardware counters, so the profiler uses
+# cachegrind / gprof instead.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc g++ clang make libc6-dev binutils valgrind util-linux coreutils \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=hrtime /hrtime /usr/local/bin/hrtime
+
+COPY requirements.txt constraints.txt ./
+RUN pip install --index-url https://download.pytorch.org/whl/cpu "torch==$(grep -i '^torch==' constraints.txt | cut -d= -f3)"
+RUN pip install -r requirements.txt -c constraints.txt
+
+COPY optiflow/ optiflow/
+COPY benchmarks/ benchmarks/
+COPY results/ results/
+COPY pyproject.toml README.md STATUS.md ./
+COPY --from=dashboard /dashboard/out dashboard/out
+
+# Knowledge base + embedding model, built once into the image.
+RUN python -m optiflow.knowledge.ingest
+
+# The strategy-predictor model is a build artifact (git-ignored). Retrain it
+# from the committed dataset, then restore the committed report so the
+# evidence shown on /api/ml is exactly what was recorded.
+RUN cp results/xgb_report.json /tmp/xgb_report.json \
+    && python -m optiflow.ml.train_xgb \
+    && cp /tmp/xgb_report.json results/xgb_report.json
+
+# Root is needed only so the local sandbox can run candidate code as a
+# different, unprivileged uid (10002) that cannot read this process's
+# environment (API keys) or other candidates' build directories.
+RUN useradd --uid 10002 --no-create-home --shell /usr/sbin/nologin runner \
+    && mkdir -p /var/data
+
+EXPOSE 10000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s \
+  CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/api/health' % os.getenv('PORT','10000'), timeout=4)"
+CMD ["sh", "-c", "exec python -m optiflow serve --host 0.0.0.0 --port ${PORT:-10000}"]

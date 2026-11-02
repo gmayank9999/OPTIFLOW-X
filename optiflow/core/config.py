@@ -35,6 +35,17 @@ ROLES = (
 MODEL_ASSIGNMENT_NAMES = ("single-cloud", "single-local", "mixed")
 
 
+def data_dir(sub: str, default_root: str = "results") -> "pathlib.Path":
+    """Where files a deployed server *writes* (run reports, traces, user
+    programs) live. OPTIFLOW_DATA_DIR points at a persistent disk; unset,
+    they go under results/ as before. Committed evidence (runs.csv,
+    stability.json, ...) is always read from results/, never from here."""
+    import pathlib
+
+    root = os.getenv("OPTIFLOW_DATA_DIR")
+    return pathlib.Path(root) / sub if root else pathlib.Path(default_root) / sub
+
+
 @dataclass(frozen=True)
 class Settings:
     cloud_model: str
