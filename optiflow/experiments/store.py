@@ -56,7 +56,12 @@ def save_run(state: RunState, cfg, events: list[dict]) -> pathlib.Path:
     with open(run_dir / "events.jsonl", "w", encoding="utf-8") as f:
         for event in events:
             f.write(json.dumps(event, default=str) + "\n")
-    append_csv(report["row"])
+    # Programs the user submitted aren't experiment data: keep them out of the
+    # versioned runs.csv (the report above is still saved and viewable).
+    from optiflow.tools.registry import is_custom
+
+    if not is_custom(state.program_id):
+        append_csv(report["row"])
     return run_dir
 
 

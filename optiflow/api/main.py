@@ -57,14 +57,19 @@ DASHBOARD_OUT = pathlib.Path("dashboard/out")
 # run_id -> {"status", "config", "program_id", "events": [...], "error", "queued_at", ...}
 _runs: dict[str, dict] = {}
 _subscribers: dict[str, list[asyncio.Queue]] = {}
-_queue: "queue.Queue[tuple[str, RunConfig, str]]" = queue.Queue()
+_queue: "queue.Queue[tuple[str, RunConfig, str, dict | None]]" = queue.Queue()
 _loop: asyncio.AbstractEventLoop | None = None
 _worker: threading.Thread | None = None
 _lock = threading.Lock()
 
 
 class StartRunRequest(BaseModel):
-    program_id: str
+    # Either a benchmark `program_id`, or the user's own `source` (+ language
+    # and optional stdin test inputs). With `source`, program_id is ignored.
+    program_id: str | None = None
+    source: str | None = None
+    language: Literal["c", "cpp"] = "c"
+    test_inputs: list[str] = Field(default_factory=list, max_length=3)
     architecture: Literal["sequential", "hierarchical", "event"] = "sequential"
     messaging: Literal["blackboard", "p2p", "broadcast"] = "blackboard"
     prompt_style: Literal["structured", "react", "reflection", "few_shot"] = "structured"
@@ -95,7 +100,7 @@ def _worker_main() -> None:
     from optiflow.architectures.base import build
 
     while True:
-        run_id, cfg, program_id = _queue.get()
+        run_id, cfg, program_id, custom = _queue.get()
         with _lock:
             if _runs.get(run_id, {}).get("status") == "cancelled":
                 _queue.task_done()
@@ -103,15 +108,25 @@ def _worker_main() -> None:
             _runs[run_id]["status"] = "running"
             _runs[run_id]["started_at"] = time.time()
         try:
+            if custom is not None:
+                # Reference outputs come from running the user's original in
+                # the sandbox, so this happens here (one job at a time), not
+                # in the request handler.
+                from optiflow.tools.custom import materialize
+
+                materialize(program_id, custom["source"], custom["language"], custom["test_inputs"])
             state = build(cfg, emit=lambda e, rid=run_id: _publish(rid, e)).run(program_id)
             with _lock:
                 _runs[run_id]["status"] = "done"
                 _runs[run_id]["best_speedup"] = state.best["speedup"] if state.best else 1.0
         except Exception as exc:  # noqa: BLE001 - surfaced to the dashboard, not swallowed
+            from optiflow.tools.custom import CustomProgramError
+
+            message = str(exc) if isinstance(exc, CustomProgramError) else f"{type(exc).__name__}: {exc}"
             with _lock:
                 _runs[run_id]["status"] = "failed"
-                _runs[run_id]["error"] = f"{type(exc).__name__}: {exc}"
-            _publish(run_id, {"type": "run_end", "status": "failed", "error": str(exc), "t": time.time(),
+                _runs[run_id]["error"] = message
+            _publish(run_id, {"type": "run_end", "status": "failed", "error": message, "t": time.time(),
                               "run_id": run_id})
         finally:
             _queue.task_done()
@@ -212,9 +227,22 @@ def require_token(authorization: str | None = Header(None), x_api_token: str | N
 
 @app.post("/api/runs", dependencies=[Depends(require_token)])
 def start_run(req: StartRunRequest) -> dict:
-    if req.program_id not in list_programs():
-        raise HTTPException(status_code=404, detail=f"unknown program: {req.program_id}")
     from optiflow.security.guardrails import GuardrailViolation, check_user_text
+    from optiflow.tools import custom as custom_programs
+
+    custom = None
+    if req.source is not None:
+        test_inputs = [t for t in req.test_inputs if t.strip()]
+        try:
+            custom_programs.validate_submission(req.source, req.language, test_inputs)
+        except custom_programs.CustomProgramError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        program_id = custom_programs.new_program_id()
+        custom = {"source": req.source, "language": req.language, "test_inputs": test_inputs}
+    else:
+        if req.program_id not in list_programs():
+            raise HTTPException(status_code=404, detail=f"unknown program: {req.program_id}")
+        program_id = req.program_id
 
     # User text is screened before anything is queued: a prompt-injection or
     # abusive instruction is rejected with the guardrail's findings.
@@ -233,11 +261,13 @@ def start_run(req: StartRunRequest) -> dict:
     except GuardrailViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     with _lock:
-        _runs[run_id] = {"status": "queued", "program_id": req.program_id, "config": req.model_dump(),
-                         "events": [], "error": None, "queued_at": time.time()}
+        _runs[run_id] = {"status": "queued", "program_id": program_id,
+                         "config": req.model_dump(exclude={"source", "test_inputs"}),
+                         "events": [], "error": None, "queued_at": time.time(),
+                         "source": custom["source"] if custom else None}
     _ensure_worker()
-    _queue.put((run_id, cfg, req.program_id))
-    return {"run_id": run_id, "status": "queued", "position": _queue.qsize()}
+    _queue.put((run_id, cfg, program_id, custom))
+    return {"run_id": run_id, "status": "queued", "position": _queue.qsize(), "program_id": program_id}
 
 
 @app.post("/api/runs/{run_id}/cancel")
@@ -287,7 +317,7 @@ def get_run(run_id: str) -> dict:
     return {
         "run_id": run_id, "status": live_copy["status"], "program_id": live_copy["program_id"],
         "config": live_copy["config"], "events": live_copy["events"], "error": live_copy["error"],
-        "original_source": load(live_copy["program_id"])["source"],
+        "original_source": live_copy.get("source") or load(live_copy["program_id"])["source"],
     }
 
 

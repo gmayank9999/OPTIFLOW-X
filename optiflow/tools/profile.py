@@ -28,7 +28,7 @@ from collections import defaultdict
 from optiflow.core.schemas import Hotspot, ProfileReport
 from optiflow.tools import analyze as analyze_tool
 from optiflow.tools.compile import compile_and_register
-from optiflow.tools.registry import _program_dir, load
+from optiflow.tools.registry import _program_dir, is_custom, load
 from optiflow.tools.sandbox import run_in_sandbox
 
 CACHE_DIR = pathlib.Path("results/profiles")
@@ -47,6 +47,7 @@ def profile(program_id: str, n: int = 5, use_cache: bool = True) -> ProfileRepor
     cache_path = CACHE_DIR / f"{program_id}.json"
     digest = hashlib.sha256(source.encode()).hexdigest()[:16]
 
+    use_cache = use_cache and not is_custom(program_id)
     if use_cache and cache_path.exists():
         cached = json.loads(cache_path.read_text())
         if cached.get("source_sha") == digest:
@@ -89,6 +90,8 @@ def profile(program_id: str, n: int = 5, use_cache: bool = True) -> ProfileRepor
         bottleneck_text=describe_bottleneck(counters, hotspots),
     )
 
+    if is_custom(program_id):  # user programs never touch the versioned profile cache
+        return report
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_path.write_text(json.dumps({"source_sha": digest, "report": report.model_dump()}, indent=2))
     return report

@@ -596,7 +596,9 @@ def _render(m) -> str:
 def _log_experience(state: RunState, plan: OptimizationPlan | None, verdict: Verdict) -> None:
     """Cross-run memory (Section 10.2): every judged LLM attempt becomes a
     labeled row the XGBoost dataset builder can learn from."""
-    if plan is None or state.summary is None or state.variant in ("rule_only", "flags_only"):
+    from optiflow.tools.registry import is_custom
+
+    if plan is None or state.summary is None or state.variant in ("rule_only", "flags_only")             or is_custom(state.program_id):
         return
     if verdict.reason in ("plan_error", "llm_error", "toolerror", "missingcontext", "no_more_strategies"):
         return

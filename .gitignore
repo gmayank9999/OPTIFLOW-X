@@ -53,3 +53,6 @@ Thumbs.db
 
 # Experiment-run lock (see optiflow/experiments/run_all.py)
 results/.run_all.lock
+
+# Programs submitted through the workspace (user code, not evidence)
+results/custom_programs/

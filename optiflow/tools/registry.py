@@ -6,10 +6,19 @@ import json
 import pathlib
 
 BENCHMARKS_ROOT = pathlib.Path(__file__).resolve().parents[2] / "benchmarks"
+# Programs pasted or uploaded through the workspace. Kept apart from the
+# benchmark suite so the manifest, the stability table and the experiment
+# matrix never see them (see optiflow/tools/custom.py).
+CUSTOM_ROOT = pathlib.Path(__file__).resolve().parents[2] / "results" / "custom_programs"
+CUSTOM_PREFIX = "custom_"
+
+
+def is_custom(program_id: str) -> bool:
+    return program_id.startswith(CUSTOM_PREFIX)
 
 
 def _program_dir(program_id: str) -> pathlib.Path:
-    d = BENCHMARKS_ROOT / program_id
+    d = (CUSTOM_ROOT if is_custom(program_id) else BENCHMARKS_ROOT) / program_id
     if not d.is_dir():
         raise KeyError(f"unknown program_id: {program_id}")
     return d
