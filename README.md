@@ -24,12 +24,12 @@ mechanisms (blackboard, peer-to-peer, broadcast), three prompting styles
 (structured, ReAct, reflection), three model assignments, and a set of
 ablations, compared on success, speedup, latency and cost.
 
-## Course requirements
+## Capabilities
 
-[`REQUIREMENTS.md`](REQUIREMENTS.md) maps each course requirement (shared
-state and messaging, MCP tools, Pydantic output, agentic patterns,
-callbacks, A2A across CrewAI and Google ADK, guardrails, observability,
-evaluation, deployment) to the code, the tests and the evidence.
+[`CAPABILITIES.md`](CAPABILITIES.md) maps each capability (shared state and
+messaging, MCP tools, Pydantic output, agentic patterns, callbacks, A2A
+across CrewAI and Google ADK, guardrails, observability, evaluation,
+deployment) to the code, the tests and the evidence.
 
 ## Status
 
@@ -157,7 +157,16 @@ programs, cost/latency percentiles and a cost-vs-success Pareto front.
 
 `docker compose build sandbox && docker compose up -d --build` runs the
 app and the ADK reviewer. It needs a host with a Docker daemon (a VM, not
-serverless); `deploy/README.md` has a Google Compute Engine recipe.
+serverless); `deploy/README.md` has a recipe for a Linux VM (Google Compute
+Engine commands; any Ubuntu VM with Docker works, e.g. an Azure B2ms).
+
+The reference deployment runs on an Azure Ubuntu 22.04 VM (Standard_B2ms,
+8 GB) with the same `docker compose` stack: the app on port 8000, the ADK
+reviewer on the internal network, and candidates in locked-down Docker
+containers. Set `OPTIFLOW_API_TOKEN` so only you can start runs, and use
+`SANDBOX_CPUSET=1` on a 2-vCPU machine. Hosts without a Docker daemon
+(Render) can use `Dockerfile.render`, which runs candidates in a
+resource-limited subprocess instead (`deploy/RENDER.md`).
 
 ## Tests
 
@@ -192,4 +201,4 @@ tests/
 
 ## License
 
-Coursework project; no license granted for reuse.
+All rights reserved. No license is granted for reuse.

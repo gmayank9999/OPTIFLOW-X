@@ -48,13 +48,13 @@ export default function Overview() {
         <div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-2 w-2 rounded-full bg-accent animate-pulse" />
-            <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-accent">Review Ready</span>
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-accent">Live</span>
           </div>
-          <h2 className="mt-1 text-[15px] font-semibold text-ink">Professor's 11 Project Requirements Compliance Dashboard</h2>
-          <p className="text-[13px] text-muted">Complete live audit with Blackboard messaging comparison, FastMCP tools, A2A interop, Pydantic contracts, and guardrails.</p>
+          <h2 className="mt-1 text-[15px] font-semibold text-ink">Capabilities and evidence</h2>
+          <p className="text-[13px] text-muted">Live coverage of Blackboard messaging comparison, FastMCP tools, A2A interop, Pydantic contracts, and guardrails.</p>
         </div>
         <Link href="/requirements/" className="shrink-0 rounded-[5px] bg-ink px-3.5 py-1.5 font-mono text-[12px] font-medium text-paper hover:opacity-90">
-          View 11 Requirements →
+          View capabilities →
         </Link>
       </div>
 

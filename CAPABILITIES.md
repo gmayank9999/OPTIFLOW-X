@@ -1,6 +1,6 @@
-# Course requirements → where they live
+# Capabilities → where they live
 
-Each requirement, the code that implements it, the tests that prove it,
+Each capability, the code that implements it, the tests that prove it,
 and the evidence in `results/`. "How to see it" points at the dashboard
 (`python -m optiflow serve`, then http://localhost:8000) or a command.
 

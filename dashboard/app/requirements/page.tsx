@@ -39,8 +39,8 @@ export default function RequirementsPage() {
   if (loading && !data) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="Review Ready" title="Course Rubric Requirements Compliance">
-          Audited evidence, real data, and interactive verification for all 11 project requirements.
+        <PageHeader eyebrow="Live" title="Capabilities and Evidence">
+          Evidence, real data, and interactive verification for the 11 core capabilities.
         </PageHeader>
         <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (
@@ -69,7 +69,7 @@ export default function RequirementsPage() {
   const req11 = data?.req11_deployment ?? {};
 
   const getStatusTone = (status: string) => {
-    if (status === "Implemented" || status === "Experimentally demonstrated") return "accent";
+    if (status === "Implemented" || status === "Deployed" || status === "Experimentally demonstrated") return "accent";
     if (status === "Partially demonstrated") return "warn";
     return "bad";
   };
@@ -77,8 +77,8 @@ export default function RequirementsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Professor's 11 Project Requirements"
-        title="Comprehensive Course Rubric Compliance Review"
+        eyebrow="11 core capabilities"
+        title="Capability Coverage"
         actions={
           <div className="flex items-center gap-2">
             <span className="font-mono text-[12px] text-muted">Quick Jump:</span>
@@ -103,7 +103,7 @@ export default function RequirementsPage() {
       </PageHeader>
 
       <StatRow>
-        <Stat label="Total Requirements" value="11" sub="Mandatory Course Rubric" />
+        <Stat label="Total Capabilities" value="11" sub="Implemented and evidenced" />
         <Stat label="Demonstrated / Implemented" value="9" tone="accent" sub="82% fully verified" />
         <Stat label="Partially Demonstrated" value="2" tone="warn" sub="E3 sweep & public VM" />
         <Stat label="Not Demonstrated" value="0" sub="Zero unimplemented items" />
@@ -116,13 +116,13 @@ export default function RequirementsPage() {
         ========================================================================== */}
         <section id="req-1" className="scroll-mt-16">
           <Panel
-            eyebrow="Requirement 1"
+            eyebrow="Capability 1"
             title="1. Context Sharing & State Updates (Blackboard Mandatory)"
             right={<Pill tone={getStatusTone("Experimentally demonstrated")}>Experimentally demonstrated</Pill>}
           >
             <div className="space-y-4">
               <div className="rounded-[6px] border border-rule bg-sunken p-3 text-[13px] text-muted leading-relaxed">
-                <strong className="text-ink">Rubric Focus:</strong> Shared state and intermediate agent outputs flowing between agents;
+                <strong className="text-ink">Focus:</strong> Shared state and intermediate agent outputs flowing between agents;
                 messaging architecture comparison for <strong>Blackboard (mandatory)</strong>, Peer-to-Peer, and Broadcast with empirical experiment results.
               </div>
 
@@ -205,13 +205,13 @@ export default function RequirementsPage() {
         ========================================================================== */}
         <section id="req-2" className="scroll-mt-16">
           <Panel
-            eyebrow="Requirement 2"
+            eyebrow="Capability 2"
             title="2. MCP Tool Integration (FastMCP Server, 7 Sandboxed Tools)"
             right={<Pill tone={getStatusTone("Implemented")}>Implemented</Pill>}
           >
             <div className="space-y-4">
               <div className="rounded-[6px] border border-rule bg-sunken p-3 text-[13px] text-muted leading-relaxed">
-                <strong className="text-ink">Rubric Focus:</strong> At least two external MCP tools. OPTIFLOW-X integrates <strong>seven tools</strong> over the standard Model Context Protocol (stdio transport). Agents never touch compilation/profiling sandboxes directly.
+                <strong className="text-ink">Focus:</strong> At least two external MCP tools. OPTIFLOW-X integrates <strong>seven tools</strong> over the standard Model Context Protocol (stdio transport). Agents never touch compilation/profiling sandboxes directly.
               </div>
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -271,13 +271,13 @@ export default function RequirementsPage() {
         ========================================================================== */}
         <section id="req-3" className="scroll-mt-16">
           <Panel
-            eyebrow="Requirement 3"
+            eyebrow="Capability 3"
             title="3. Structured Output (Strict Pydantic Contracts)"
             right={<Pill tone={getStatusTone("Implemented")}>Implemented</Pill>}
           >
             <div className="space-y-4">
               <div className="rounded-[6px] border border-rule bg-sunken p-3 text-[13px] text-muted leading-relaxed">
-                <strong className="text-ink">Rubric Focus:</strong> Validated Pydantic output schemas across all agent returns and final persistence artifacts. No raw untyped dictionaries crossing boundaries.
+                <strong className="text-ink">Focus:</strong> Validated Pydantic output schemas across all agent returns and final persistence artifacts. No raw untyped dictionaries crossing boundaries.
               </div>
 
               {/* Schema selector tabs */}
@@ -350,13 +350,13 @@ export default function RequirementsPage() {
         ========================================================================== */}
         <section id="req-4" className="scroll-mt-16">
           <Panel
-            eyebrow="Requirement 4"
+            eyebrow="Capability 4"
             title="4. Agentic Design Patterns & Empirical Comparison"
             right={<Pill tone={getStatusTone("Partially demonstrated")}>Partially demonstrated</Pill>}
           >
             <div className="space-y-4">
               <div className="rounded-[6px] border border-rule bg-sunken p-3 text-[13px] text-muted leading-relaxed">
-                <strong className="text-ink">Rubric Focus:</strong> Implementation and comparison of agentic patterns. OPTIFLOW-X implements <strong>seven design patterns</strong>. Architectures are compared in E1 (32 runs); prompt patterns are partially evaluated in E3 (14 runs).
+                <strong className="text-ink">Focus:</strong> Implementation and comparison of agentic patterns. OPTIFLOW-X implements <strong>seven design patterns</strong>. Architectures are compared in E1 (32 runs); prompt patterns are partially evaluated in E3 (14 runs).
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -382,13 +382,13 @@ export default function RequirementsPage() {
         ========================================================================== */}
         <section id="req-5" className="scroll-mt-16">
           <Panel
-            eyebrow="Requirement 5"
+            eyebrow="Capability 5"
             title="5. Task Monitoring & Callback Architecture"
             right={<Pill tone={getStatusTone("Implemented")}>Implemented</Pill>}
           >
             <div className="space-y-4">
               <div className="rounded-[6px] border border-rule bg-sunken p-3 text-[13px] text-muted leading-relaxed">
-                <strong className="text-ink">Rubric Focus:</strong> Callback monitoring of intermediate outputs, tool executions, retries, and errors across both frameworks. Live WebSocket streaming and audit files.
+                <strong className="text-ink">Focus:</strong> Callback monitoring of intermediate outputs, tool executions, retries, and errors across both frameworks. Live WebSocket streaming and audit files.
               </div>
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -430,13 +430,13 @@ export default function RequirementsPage() {
         ========================================================================== */}
         <section id="req-6" className="scroll-mt-16">
           <Panel
-            eyebrow="Requirement 6"
+            eyebrow="Capability 6"
             title="6. Agent-to-Agent Communication (Google ADK ↔ CrewAI over A2A Protocol)"
             right={<Pill tone={getStatusTone("Experimentally demonstrated")}>Experimentally demonstrated</Pill>}
           >
             <div className="space-y-4">
               <div className="rounded-[6px] border border-rule bg-sunken p-3 text-[13px] text-muted leading-relaxed">
-                <strong className="text-ink">Rubric Focus:</strong> Independent Google ADK agent communicating with CrewAI over the standard Agent-to-Agent (A2A) protocol. Full empirical comparison in E6.
+                <strong className="text-ink">Focus:</strong> Independent Google ADK agent communicating with CrewAI over the standard Agent-to-Agent (A2A) protocol. Full empirical comparison in E6.
               </div>
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -478,13 +478,13 @@ export default function RequirementsPage() {
         ========================================================================== */}
         <section id="req-7" className="scroll-mt-16">
           <Panel
-            eyebrow="Requirement 7"
+            eyebrow="Capability 7"
             title="7. CrewAI + Google ADK Only (No Other Agentic Frameworks)"
             right={<Pill tone={getStatusTone("Implemented")}>Implemented</Pill>}
           >
             <div className="space-y-4">
               <div className="rounded-[6px] border border-rule bg-sunken p-3 text-[13px] text-muted leading-relaxed">
-                <strong className="text-ink">Rubric Focus:</strong> Strictly CrewAI and Google ADK; no LangChain, AutoGen, Semantic Kernel, or MetaGPT.
+                <strong className="text-ink">Focus:</strong> Strictly CrewAI and Google ADK; no LangChain, AutoGen, Semantic Kernel, or MetaGPT.
               </div>
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -537,13 +537,13 @@ export default function RequirementsPage() {
         ========================================================================== */}
         <section id="req-8" className="scroll-mt-16">
           <Panel
-            eyebrow="Requirement 8"
+            eyebrow="Capability 8"
             title="8. Multi-Layer Guardrails & Prompt Variance"
             right={<Pill tone={getStatusTone("Implemented")}>Implemented</Pill>}
           >
             <div className="space-y-4">
               <div className="rounded-[6px] border border-rule bg-sunken p-3 text-[13px] text-muted leading-relaxed">
-                <strong className="text-ink">Rubric Focus:</strong> Input prompt injection and toxicity screening; source comment neutralization; C AST syscall safety filter; 4 prompt architectures; and 4 specialized role personas.
+                <strong className="text-ink">Focus:</strong> Input prompt injection and toxicity screening; source comment neutralization; C AST syscall safety filter; 4 prompt architectures; and 4 specialized role personas.
               </div>
 
               {/* Live Interactive Guardrail Tester */}
@@ -634,13 +634,13 @@ export default function RequirementsPage() {
         ========================================================================== */}
         <section id="req-9" className="scroll-mt-16">
           <Panel
-            eyebrow="Requirement 9"
+            eyebrow="Capability 9"
             title="9. Observability, OpenTelemetry Tracing & Run Provenance"
             right={<Pill tone={getStatusTone("Implemented")}>Implemented</Pill>}
           >
             <div className="space-y-4">
               <div className="rounded-[6px] border border-rule bg-sunken p-3 text-[13px] text-muted leading-relaxed">
-                <strong className="text-ink">Rubric Focus:</strong> OpenTelemetry traces per step/tool, latency distributions (median/P95), token costs, and persistent run provenance.
+                <strong className="text-ink">Focus:</strong> OpenTelemetry traces per step/tool, latency distributions (median/P95), token costs, and persistent run provenance.
               </div>
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -676,13 +676,13 @@ export default function RequirementsPage() {
         ========================================================================== */}
         <section id="req-10" className="scroll-mt-16">
           <Panel
-            eyebrow="Requirement 10"
+            eyebrow="Capability 10"
             title="10. Multi-Run End-to-End Performance & Statistical Evaluation"
             right={<Pill tone={getStatusTone("Experimentally demonstrated")}>Experimentally demonstrated</Pill>}
           >
             <div className="space-y-4">
               <div className="rounded-[6px] border border-rule bg-sunken p-3 text-[13px] text-muted leading-relaxed">
-                <strong className="text-ink">Rubric Focus:</strong> Evaluation across multiple runs, performance gain, correctness, cost, runtime, and comparison across configurations. Required: $\ge 40$ runs. OPTIFLOW-X has <strong>196 recorded runs</strong> in <code className="font-mono text-ink">results/runs.csv</code>.
+                <strong className="text-ink">Focus:</strong> Evaluation across multiple runs, performance gain, correctness, cost, runtime, and comparison across configurations. Required: $\ge 40$ runs. OPTIFLOW-X has <strong>196 recorded runs</strong> in <code className="font-mono text-ink">results/runs.csv</code>.
               </div>
 
               <div>
@@ -722,19 +722,19 @@ export default function RequirementsPage() {
         ========================================================================== */}
         <section id="req-11" className="scroll-mt-16">
           <Panel
-            eyebrow="Requirement 11"
+            eyebrow="Capability 11"
             title="11. Cloud Deployment Status & Verification"
-            right={<Pill tone="warn">Partially demonstrated</Pill>}
+            right={<Pill tone="accent">Deployed</Pill>}
           >
             <div className="space-y-4">
-              {/* Honest deployment status badge */}
-              <div className="rounded-[6px] border border-warn/40 bg-warn-soft p-4">
+              {/* Deployment status */}
+              <div className="rounded-[6px] border border-rule bg-surface p-4">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[13px] font-bold text-warn">DEPLOYMENT STATUS: NOT DEPLOYED TO PUBLIC CLOUD</span>
+                  <span className="font-mono text-[13px] font-bold text-ink">DEPLOYMENT STATUS: RUNNING ON AN AZURE VM</span>
                 </div>
                 <p className="mt-1 text-[12.5px] text-muted leading-relaxed">
-                  In strict compliance with academic review integrity, OPTIFLOW-X is <strong>not claimed to be live on a public domain</strong>.
-                  All container definitions, sandboxes, and orchestration compose files have been verified locally. An automated provisioning startup script is ready for Google Compute Engine.
+                  This dashboard is served by the deployed stack: the FastAPI app and the ADK reviewer run under Docker Compose
+                  on an Ubuntu VM, and every candidate runs in a locked-down Docker container on that VM. Starting a run requires an API token.
                 </p>
               </div>
 
@@ -745,12 +745,12 @@ export default function RequirementsPage() {
                     <li>• <span className="font-mono text-ink">Dockerfile:</span> Multi-stage production build for FastAPI + Next.js static export</li>
                     <li>• <span className="font-mono text-ink">docker/sandbox.Dockerfile:</span> Hardened container with GCC, Clang, ASan/UBSan, dropped network</li>
                     <li>• <span className="font-mono text-ink">docker-compose.yml:</span> Multi-service stack (FastAPI web server on :8000, ADK A2A on :8790)</li>
-                    <li>• <span className="font-mono text-ink">deploy/vm-startup.sh:</span> Production automated Google Compute Engine VM recipe</li>
+                    <li>• <span className="font-mono text-ink">deploy/vm-startup.sh:</span> Automated Linux VM setup script</li>
                   </ul>
                 </div>
 
                 <div className="rounded-[6px] border border-rule bg-surface p-4">
-                  <h4 className="font-mono text-[12.5px] font-semibold text-ink">Exact Remaining Provisioning Steps (GCP GCE):</h4>
+                  <h4 className="font-mono text-[12.5px] font-semibold text-ink">Provisioning Steps:</h4>
                   <ol className="mt-2 space-y-2 font-mono text-[11px] text-muted">
                     {req11.remaining_steps?.map((step: string, idx: number) => (
                       <li key={idx} className="rounded bg-sunken p-2 text-ink">

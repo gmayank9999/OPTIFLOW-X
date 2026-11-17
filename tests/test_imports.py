@@ -31,7 +31,7 @@ def test_the_walk_found_the_whole_package():
 
 
 def test_no_forbidden_agent_frameworks():
-    """Rubric Item 7: CrewAI and Google ADK only; no other agentic framework."""
+    """CrewAI and Google ADK only; no other agentic framework."""
     import pathlib
     import re
     import sys

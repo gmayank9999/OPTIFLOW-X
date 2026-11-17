@@ -235,7 +235,7 @@ export default function WorkspacePage() {
       <header className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="eyebrow">Try as User</span>
-          <Link href="/requirements/" className="text-[13px] text-muted underline-offset-2 hover:text-ink hover:underline">← Requirements Review</Link>
+          <Link href="/requirements/" className="text-[13px] text-muted underline-offset-2 hover:text-ink hover:underline">← Capabilities</Link>
         </div>
         <h1 className="text-[30px] font-semibold leading-tight tracking-tight text-ink md:text-[36px]">Make your C/C++ code faster</h1>
         <p className="max-w-[640px] text-[16px] text-muted">

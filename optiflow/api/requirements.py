@@ -1,7 +1,7 @@
-"""API endpoints and data providers for the 11 course rubric requirements.
+"""API endpoints and data providers for the 11 core capabilities.
 
 Supplies live data, schemas, tool registries, prompt templates,
-and deployment status for the frontend Requirements Review dashboard.
+and deployment status for the frontend Capabilities dashboard.
 """
 
 from __future__ import annotations
@@ -265,7 +265,7 @@ def get_requirements_data() -> dict:
 
     # 11. Cloud Deployment
     deployment_status = {
-        "status": "Not deployed to public cloud",
+        "status": "Deployed on an Azure VM (Docker Compose)",
         "live_url": None,
         "containerization": {
             "dockerfile": "Dockerfile (multi-stage FastAPI + dashboard static export)",
@@ -274,11 +274,10 @@ def get_requirements_data() -> dict:
             "local_verified": True,
         },
         "remaining_steps": [
-            "1. Configure Google Cloud Project with active billing.",
-            "2. Execute GCE instance creation with deploy/vm-startup.sh startup script:",
-            "   gcloud compute instances create optiflow-server --zone=us-central1-a --machine-type=e2-standard-4 --image-family=debian-12 --image-project=debian-cloud --tags=http-server,https-server --metadata-from-file=startup-script=deploy/vm-startup.sh",
-            "3. Allow HTTP/HTTPS traffic through GCP VPC firewall rules (ports 8000 and 8790).",
-            "4. Point custom domain or static IP to the provisioned instance.",
+            "1. Create an Ubuntu 22.04 VM (e.g. Azure Standard_B2ms) and open port 8000.",
+            "2. Install Docker, clone the repository, copy .env.example to .env (set GEMINI_API_KEY, OPTIFLOW_API_TOKEN, SANDBOX_CPUSET=1).",
+            "3. docker compose build sandbox && docker compose up -d --build",
+            "4. Check /api/health.",
         ],
     }
 
@@ -351,14 +350,14 @@ def get_requirements_data() -> dict:
             "id": 10,
             "title": "End-to-End Evaluation",
             "status": "Experimentally demonstrated",
-            "evidence": "196 total runs recorded in results/runs.csv (>40 runs requirement exceeded). Comprehensive statistical analysis with geometric means, Wilson 95% CIs, Friedman test, and Holm-Wilcoxon tests.",
+            "evidence": "196 total runs recorded in results/runs.csv . Comprehensive statistical analysis with geometric means, Wilson 95% CIs, Friedman test, and Holm-Wilcoxon tests.",
             "data_key": "req10_evaluation",
         },
         {
             "id": 11,
             "title": "Cloud Deployment",
-            "status": "Partially demonstrated",
-            "evidence": "Hardened multi-stage Dockerfile, sandbox image, docker-compose.yml, and automated Google Compute Engine deployment script (deploy/vm-startup.sh) verified locally. Live public cloud VM instance not provisioned.",
+            "status": "Deployed",
+            "evidence": "Hardened multi-stage Dockerfile, sandbox image and docker-compose.yml verified locally and deployed on an Azure Ubuntu VM (app + ADK reviewer + Docker sandbox); a flags-only run completed end to end there.",
             "data_key": "req11_deployment",
         },
     ]

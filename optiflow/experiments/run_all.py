@@ -4,7 +4,7 @@
     python -m optiflow.experiments.run_all --only e6_interop e3_prompting
     python -m optiflow.experiments.run_all --dry-run        # list the cells that would run
 
-Order follows importance to the course requirements:
+Order follows importance to the core capabilities:
   E6 (CrewAI vs ADK over A2A) -> E3 (prompt + persona variance) -> E2 (messaging)
   -> E5 (ablations) -> E7 (architecture, 3 repeats per cell).
 

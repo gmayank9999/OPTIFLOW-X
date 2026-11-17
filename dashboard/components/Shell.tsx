@@ -9,7 +9,7 @@ import { cx } from "@/lib/format";
 const NAV = [
   { href: "/", label: "Overview", key: "overview" },
   { href: "/workspace/", label: "Try as User", key: "workspace" },
-  { href: "/requirements/", label: "Requirements", key: "requirements" },
+  { href: "/requirements/", label: "Capabilities", key: "requirements" },
   { href: "/runs/", label: "Runs", key: "runs" },
   { href: "/programs/", label: "Programs", key: "programs" },
   { href: "/agents/", label: "Agents", key: "agents" },
